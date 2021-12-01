@@ -2,6 +2,7 @@ import ipdb
 import math
 import random
 import os
+import time
 import torch
 from path import Path
 from source import model
@@ -65,6 +66,8 @@ def train(args):
         print(error)
 
     print('Start training')
+    t0 = time.time()
+    Nprint = 5
     for epoch in range(args.epochs):
         pointnet.train()
         running_loss = 0.0
@@ -80,13 +83,14 @@ def train(args):
 
             # print statistics
             running_loss += loss.item()
-            if i % 10 == 9:    # print every 10 mini-batches
-                print('[Epoch: %d, Batch: %4d / %4d], loss: %.3f' %
-                      (epoch + 1, i + 1, len(train_loader), running_loss / 10))
+            if i % Nprint == Nprint-1:    # print every 10 mini-batches
+                print('[Epoch: %d, Batch: %4d / %4d], loss: %.3f, Total Time: %.3f [min]'%
+                      (epoch + 1, i + 1, len(train_loader), running_loss /Nprint, (time.time() - t0)/60.))
                 running_loss = 0.0
 
         pointnet.eval()
         correct = total = 0
+
 
         # validation
         if valid_loader:

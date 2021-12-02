@@ -3,6 +3,7 @@ import math
 import random
 import os
 import time
+from source.args import parse_args
 import torch
 import numpy as np
 
@@ -17,8 +18,9 @@ from torch.utils.data import Dataset, DataLoader
 random.seed = 42
 
 
-def test():
+def test(args):
 
+    path = Path(args.root_dir)
     train_transforms = transforms.Compose([
         utils.PointSampler(1024),
         utils.Normalize(),
@@ -36,8 +38,7 @@ def test():
         './checkpoints/save_14.pth', map_location=torch.device('cpu')))
     pointnet.eval()
 
-    valid_ds = dataset.PointCloudData(Path('../datasets/ModelNet10/'),
-                                      valid=True, folder='test',
+    valid_ds = dataset.PointCloudData(path, valid=True, folder='test',
                                       transform=train_transforms)
     valid_loader = DataLoader(dataset=valid_ds, batch_size=64)
 
@@ -59,4 +60,5 @@ def test():
 
 
 if __name__ == "__main__":
-    test()
+    args = parse_args()
+    test(args)

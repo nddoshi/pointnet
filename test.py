@@ -34,25 +34,24 @@ def test(args):
 
     pointnet = model.PointNet()
     pointnet.to(device)
-    pointnet.load_state_dict(torch.load(
-        './checkpoints/save_14.pth', map_location=torch.device('cpu')))
+    pointnet.load_state_dict(torch.load('./checkpoints/save_14.pth' ))
     pointnet.eval()
 
     valid_ds = dataset.PointCloudData(path, valid=True, folder='test',
                                       transform=train_transforms)
-    valid_loader = DataLoader(dataset=valid_ds, batch_size=64)
+    valid_loader = DataLoader(dataset=valid_ds, batch_size=args.batch_size*2)
 
     all_preds = []
     all_labels = []
     with torch.no_grad():
         for i, data in enumerate(valid_loader):
             print('Batch [%4d / %4d]' % (i+1, len(valid_loader)))
-
             inputs, labels = data['pointcloud'].float(), data['category']
+            inputs, labels = inputs.to(device), labels.to(device)
             outputs, __, __ = pointnet(inputs.transpose(1, 2))
             _, preds = torch.max(outputs.data, 1)
-            all_preds += list(preds.numpy())
-            all_labels += list(labels.numpy())
+            all_preds += list(preds.cpu().numpy())
+            all_labels += list(labels.cpu().numpy())
 
     cm = confusion_matrix(all_labels, all_preds)
     # ipdb.set_trace()

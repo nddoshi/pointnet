@@ -4,6 +4,8 @@ import random
 import os
 import time
 import torch
+import numpy as np
+
 from path import Path
 from source import model
 from source import dataset
@@ -12,7 +14,6 @@ from source.args import parse_args
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 
-import numpy as np
 
 random.seed = 42
 
@@ -32,6 +33,7 @@ def pointnetloss(outputs, labels, m3x3, m64x64, alpha=0.0001):
 
 def train(args):
     path = Path(args.root_dir)
+    print(path)
     folders = [dir for dir in sorted(
         os.listdir(path)) if os.path.isdir(path/dir)]
     classes = {folder: i for i, folder in enumerate(folders)}
@@ -84,13 +86,12 @@ def train(args):
             # print statistics
             running_loss += loss.item()
             if i % Nprint == Nprint-1:    # print every 10 mini-batches
-                print('[Epoch: %d, Batch: %4d / %4d], loss: %.3f, Total Time: %.3f [min]'%
-                      (epoch + 1, i + 1, len(train_loader), running_loss /Nprint, (time.time() - t0)/60.))
+                print('[Epoch: %d, Batch: %4d / %4d], loss: %.3f, Total Time: %.3f [min]' %
+                      (epoch + 1, i + 1, len(train_loader), running_loss / Nprint, (time.time() - t0)/60.))
                 running_loss = 0.0
 
         pointnet.eval()
         correct = total = 0
-
 
         # validation
         if valid_loader:

@@ -12,4 +12,3 @@ source /home/gridsan/ndoshi/venvs/pytorch-basic/bin/activate
 # Run the script
 echo "Starting training..."
 python train.py
-echo "Should I be here?"

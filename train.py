@@ -112,24 +112,8 @@ def train(args):
         checkpoint = Path(args.save_model_path)/'save_'+str(epoch)+'.pth'
         torch.save(pointnet.state_dict(), checkpoint)
         print('Model saved to ', checkpoint)
-
-'''class DefaultArgs():
-    def __init__(self):
-        self.root_dir = '/home/gridsan/ndoshi/research/datasets/ModelNet10/'
-        self.batch_size = 32
-        self.lr = 1e-3
-        self.epochs = 15
-        self.save_model_path = '/home/gridsan/ndoshi/research/pointnet/checkpoints/'
-        '''
-
-
 if __name__ == '__main__':
     print("In the main function")
-    
     args =parse_args()
-
-    #args = DefaultArgs()
-    print(args)
-
     print("Got the args, calling training")
     train(args)

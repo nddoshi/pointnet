@@ -1,3 +1,4 @@
+import argparse
 import ipdb
 import math
 import random
@@ -32,6 +33,7 @@ def pointnetloss(outputs, labels, m3x3, m64x64, alpha=0.0001):
 
 
 def train(args):
+    print("In training")
     path = Path(args.root_dir)
     print(path)
     folders = [dir for dir in sorted(
@@ -111,7 +113,23 @@ def train(args):
         torch.save(pointnet.state_dict(), checkpoint)
         print('Model saved to ', checkpoint)
 
+'''class DefaultArgs():
+    def __init__(self):
+        self.root_dir = '/home/gridsan/ndoshi/research/datasets/ModelNet10/'
+        self.batch_size = 32
+        self.lr = 1e-3
+        self.epochs = 15
+        self.save_model_path = '/home/gridsan/ndoshi/research/pointnet/checkpoints/'
+        '''
+
 
 if __name__ == '__main__':
-    args = parse_args()
+    print("In the main function")
+    
+    args =parse_args()
+
+    #args = DefaultArgs()
+    print(args)
+
+    print("Got the args, calling training")
     train(args)

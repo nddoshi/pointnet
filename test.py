@@ -3,7 +3,6 @@ import math
 import random
 import os
 import time
-from source.args import parse_args
 import torch
 import numpy as np
 
@@ -13,7 +12,9 @@ from source import dataset
 from source import utils
 from sklearn.metrics import confusion_matrix
 from torchvision import transforms
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
+
+from source.args import parse_test_args
 
 random.seed = 42
 
@@ -21,6 +22,7 @@ random.seed = 42
 def test(args):
 
     path = Path(args.root_dir)
+
     train_transforms = transforms.Compose([
         utils.PointSampler(1024),
         utils.Normalize(),
@@ -34,7 +36,16 @@ def test(args):
 
     pointnet = model.PointNet()
     pointnet.to(device)
-    pointnet.load_state_dict(torch.load('./checkpoints/save_14.pth' ))
+
+    # load test model
+    if device.type == 'cpu':
+        pointnet.load_state_dict(torch.load(
+            args.test_model_path, map_location=torch.device('cpu')))
+    elif device.type == 'cuda':
+        pointnet.load_state_dict(torch.load(args.test_model_path))
+    else:
+        raise RuntimeError("Device type not supported")
+
     pointnet.eval()
 
     valid_ds = dataset.PointCloudData(path, valid=True, folder='test',
@@ -54,10 +65,9 @@ def test(args):
             all_labels += list(labels.cpu().numpy())
 
     cm = confusion_matrix(all_labels, all_preds)
-    # ipdb.set_trace()
     print(cm)
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    args = parse_test_args()
     test(args)

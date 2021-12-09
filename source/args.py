@@ -2,7 +2,7 @@ import sys
 import argparse
 
 
-def parse_args():
+def parse_train_args():
     parser = argparse.ArgumentParser(description='')
 
     #  experiment settings
@@ -22,6 +22,25 @@ def parse_args():
     assert args.root_dir is not None
 
     print(' '.join(sys.argv))
-    print(args)
+
+    return args
+
+
+def parse_test_args():
+    parser = argparse.ArgumentParser(description='')
+
+    #  experiment settings
+    parser.add_argument('--root_dir', default='../datasets/ModelNet10/', type=str,
+                        help='dataset directory')
+    parser.add_argument('--batch_size', default=32, type=int,
+                        help='training batch size')
+    parser.add_argument('--test_model_path', default='./trained_models/latest.pth', type=str,
+                        help='path of trained model')
+
+    args = parser.parse_args()
+
+    assert args.root_dir is not None
+
+    print(' '.join(sys.argv))
 
     return args

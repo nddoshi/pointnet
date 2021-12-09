@@ -11,9 +11,9 @@ from path import Path
 from source import model
 from source import dataset
 from source import utils
-from source.args import parse_args
+from source.args import parse_train_args
 from torchvision import transforms
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
 
 random.seed = 42
@@ -112,8 +112,10 @@ def train(args):
         checkpoint = Path(args.save_model_path)/'save_'+str(epoch)+'.pth'
         torch.save(pointnet.state_dict(), checkpoint)
         print('Model saved to ', checkpoint)
+
+
 if __name__ == '__main__':
     print("In the main function")
-    args =parse_args()
+    args = parse_train_args()
     print("Got the args, calling training")
     train(args)

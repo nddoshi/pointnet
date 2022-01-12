@@ -21,7 +21,7 @@ def parse_train_args():
 
     args = parser.parse_args()
 
-    assert args.root_dir is not None
+    assert args.dataset_dir is not None
 
     print(' '.join(sys.argv))
 

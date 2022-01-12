@@ -49,7 +49,7 @@ def build_tensorboard_scalars(tags, scalars, steps):
 
 def train(args):
     print("In training")
-    path = Path(args.root_dir)
+    path = Path(args.dataset_dir)
     print(path)
     folders = [dir for dir in sorted(
         os.listdir(path)) if os.path.isdir(path/dir)]

@@ -6,8 +6,10 @@ def parse_train_args():
     parser = argparse.ArgumentParser(description='')
 
     #  experiment settings
-    parser.add_argument('--root_dir', default='../datasets/ModelNet10/', type=str,
+    parser.add_argument('--dataset_dir', default='../datasets/ModelNet10/', type=str,
                         help='dataset directory')
+    parser.add_argument('--tb_log_dir', default='../tensorboard-logs/', type=str,
+                        help='tensorboard log directory')
     parser.add_argument('--batch_size', default=32, type=int,
                         help='training batch size')
     parser.add_argument('--lr', default=1e-3, type=float,

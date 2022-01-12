@@ -79,13 +79,12 @@ def train(args):
         dataset=train_ds, batch_size=args.batch_size, shuffle=True)
     valid_loader = DataLoader(dataset=valid_ds, batch_size=args.batch_size*2)
 
-    try:
+    if not(os.path.isdir(args.save_model_path)):
         os.mkdir(args.save_model_path)
-    except OSError as error:
-        print(error)
 
     # tensorboard visualization
-    tensorboard_vis = TensorBoardVis({'log_dir': '../tensorboard-logs'})
+    tensorboard_vis = TensorBoardVis(
+        log_dir='/home/nddoshi/Research/learning_sandbox/tensorboard-logs')
 
     print('Start training')
     t0 = time.time()
@@ -108,6 +107,7 @@ def train(args):
             scalar_update_list = build_tensorboard_scalars(
                 tags=['Loss/train'], scalars=[loss.item()], steps=[step])
             tensorboard_vis.update_writer({'scalar': scalar_update_list})
+
             # print statistics
             running_loss += loss.item()
             if i % Nprint == Nprint-1:    # print every 10 mini-batches
@@ -129,18 +129,20 @@ def train(args):
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
-            val_acc = 100. * correct / total
+            val_acc = correct / total
             # build tensorboard update
             scalar_update_list = build_tensorboard_scalars(
                 tags=['Validation Accuracy'], scalars=[val_acc], steps=[step])
 
             tensorboard_vis.update_writer({'scalar': scalar_update_list})
-            print('Valid accuracy: %d %%' % val_acc)
+            print('Valid accuracy: %d' % val_acc)
         # save the model
 
         checkpoint = Path(args.save_model_path)/'save_'+str(epoch)+'.pth'
         torch.save(pointnet.state_dict(), checkpoint)
         print('Model saved to ', checkpoint)
+
+    tensorboard_vis.close_writer()
 
 
 if __name__ == '__main__':

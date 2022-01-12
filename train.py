@@ -15,6 +15,7 @@ from source.args import parse_train_args
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
+from source.visualization import TensorBoardVis
 
 random.seed = 42
 
@@ -30,6 +31,20 @@ def pointnetloss(outputs, labels, m3x3, m64x64, alpha=0.0001):
     diff3x3 = id3x3-torch.bmm(m3x3, m3x3.transpose(1, 2))
     diff64x64 = id64x64-torch.bmm(m64x64, m64x64.transpose(1, 2))
     return criterion(outputs, labels) + alpha * (torch.norm(diff3x3)+torch.norm(diff64x64)) / float(bs)
+
+
+def build_tensorboard_scalars(tags, scalars, steps):
+    ''' build scalars for tensorboard'''
+
+    assert len(tags) == len(scalars) and len(scalars) == len(steps)
+
+    scalar_updates = []
+    for tag, scalar, step in zip(tags, scalars, steps):
+        scalar_updates.append({
+            'tag': tag, 'scalar_value': scalar, 'global_step': step
+        })
+
+    return scalar_updates
 
 
 def train(args):
@@ -69,9 +84,13 @@ def train(args):
     except OSError as error:
         print(error)
 
+    # tensorboard visualization
+    tensorboard_vis = TensorBoardVis({'log_dir': '../tensorboard-logs'})
+
     print('Start training')
     t0 = time.time()
     Nprint = 5
+    step = 0
     for epoch in range(args.epochs):
         pointnet.train()
         running_loss = 0.0
@@ -85,6 +104,10 @@ def train(args):
             loss.backward()
             optimizer.step()
 
+            # build tensorboard update
+            scalar_update_list = build_tensorboard_scalars(
+                tags=['Loss/train'], scalars=[loss.item()], steps=[step])
+            tensorboard_vis.update_writer({'scalar': scalar_update_list})
             # print statistics
             running_loss += loss.item()
             if i % Nprint == Nprint-1:    # print every 10 mini-batches
@@ -92,6 +115,7 @@ def train(args):
                       (epoch + 1, i + 1, len(train_loader), running_loss / Nprint, (time.time() - t0)/60.))
                 running_loss = 0.0
 
+            step += 1
         pointnet.eval()
         correct = total = 0
 
@@ -106,6 +130,11 @@ def train(args):
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
             val_acc = 100. * correct / total
+            # build tensorboard update
+            scalar_update_list = build_tensorboard_scalars(
+                tags=['Validation Accuracy'], scalars=[val_acc], steps=[step])
+
+            tensorboard_vis.update_writer({'scalar': scalar_update_list})
             print('Valid accuracy: %d %%' % val_acc)
         # save the model
 

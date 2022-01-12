@@ -48,9 +48,7 @@ def build_tensorboard_scalars(tags, scalars, steps):
 
 
 def train(args):
-    print("In training")
-    path = Path(args.root_dir)
-    print(path)
+    path = Path(args.dataset_dir)
     folders = [dir for dir in sorted(
         os.listdir(path)) if os.path.isdir(path/dir)]
     classes = {folder: i for i, folder in enumerate(folders)}
@@ -63,7 +61,7 @@ def train(args):
         utils.ToTensor()
     ])
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    print(device)
+    print(f"Using {device} for training")
     pointnet = model.PointNet()
     pointnet.to(device)
     optimizer = torch.optim.Adam(pointnet.parameters(), lr=args.lr)
@@ -83,8 +81,7 @@ def train(args):
         os.mkdir(args.save_model_path)
 
     # tensorboard visualization
-    tensorboard_vis = TensorBoardVis(
-        log_dir='/home/nddoshi/Research/learning_sandbox/tensorboard-logs')
+    tensorboard_vis = TensorBoardVis(log_dir=args.tb_log_dir)
 
     print('Start training')
     t0 = time.time()
@@ -146,7 +143,5 @@ def train(args):
 
 
 if __name__ == '__main__':
-    print("In the main function")
     args = parse_train_args()
-    print("Got the args, calling training")
     train(args)

@@ -18,17 +18,17 @@ random.seed = 42
 
 def pointnetloss(outputs, labels, m3x3, m64x64, alpha=0.0001):
     ''' loss function '''
-
-    criterion = torch.nn.NLLLoss()
-    bs = outputs.size(0)
-    id3x3 = torch.eye(3, requires_grad=True).repeat(bs, 1, 1)
-    id64x64 = torch.eye(64, requires_grad=True).repeat(bs, 1, 1)
+    criterion = torch.nn.NLLLoss()  # negative log likelihood loss
+    batch_size = outputs.size(0)
+    id3x3 = torch.eye(3, requires_grad=True).repeat(batch_size, 1, 1)
+    id64x64 = torch.eye(64, requires_grad=True).repeat(batch_size, 1, 1)
     if outputs.is_cuda:
         id3x3 = id3x3.cuda()
         id64x64 = id64x64.cuda()
     diff3x3 = id3x3-torch.bmm(m3x3, m3x3.transpose(1, 2))
     diff64x64 = id64x64-torch.bmm(m64x64, m64x64.transpose(1, 2))
-    return criterion(outputs, labels) + alpha * (torch.norm(diff3x3)+torch.norm(diff64x64)) / float(bs)
+    return criterion(outputs, labels) + alpha * (
+        torch.norm(diff3x3)+torch.norm(diff64x64)) / float(batch_size)
 
 
 def build_tensorboard_scalars(tags, scalars, steps):
@@ -51,7 +51,7 @@ def train(args):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(f"Using {device} for training")
 
-    # dataset
+    # training dataset
     train_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args.point_cloud_type, data_dir=args.dataset_dir,
         transform=polyhedron_utils.train_transforms())
@@ -89,13 +89,13 @@ def train(args):
             inputs, labels = data['pointcloud'].to(
                 device).float(), data['class'].to(device)
 
-            # not sure
+            # reset gradients
             optimizer.zero_grad()
 
             # current prediction
             outputs, m3x3, m64x64 = pointnet(inputs.transpose(1, 2))
 
-            # loss
+            # loss and backprop
             loss = pointnetloss(outputs, labels, m3x3, m64x64)
             loss.backward()
 
@@ -115,6 +115,24 @@ def train(args):
                 running_loss = 0.0
 
             step += 1
+
+        correct = total = 0
+        with torch.no_grad():
+            for data in train_loader:
+                inputs, labels = data['pointcloud'].to(
+                    device).float(), data['class'].to(device)
+                outputs, __, __ = pointnet(inputs.transpose(1, 2))
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+            val_acc = 100. * correct / total
+
+            # build tensorboard update
+            scalar_update_list = build_tensorboard_scalars(
+                tags=['Validation Accuracy'], scalars=[val_acc], steps=[step])
+
+            tensorboard_vis.update_writer({'scalar': scalar_update_list})
+            print('Valid accuracy: %d %%' % val_acc)
 
         # save the model
         checkpoint = os.path.join(

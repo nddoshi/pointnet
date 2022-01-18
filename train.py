@@ -53,13 +53,22 @@ def train(args):
 
     # training dataset
     train_ds = polyhedron_dataset.PolyhedronDataSet(
-        pc_type=args.point_cloud_type, data_dir=args.dataset_dir,
+        pc_type=args.point_cloud_type,
+        data_dir=os.path.join(args.dataset_dir, 'train'),
         transform=polyhedron_utils.train_transforms())
     train_loader = DataLoader(
         dataset=train_ds, batch_size=args.batch_size, shuffle=True)
-    num_classes = len(np.unique(np.array(train_ds.labels)))
 
+    # testing dataset
+    valid_ds = polyhedron_dataset.PolyhedronDataSet(
+        pc_type=args.point_cloud_type,
+        data_dir=os.path.join(args.dataset_dir, 'test'),
+        transform=polyhedron_utils.default_transforms())
+    valid_loader = DataLoader(dataset=valid_ds, batch_size=args.batch_size*2)
+
+    num_classes = len(np.unique(np.array(train_ds.labels)))
     print(f'Train dataset size: {len(train_ds)}')
+    print(f'Valid dataset size: {len(valid_ds)}')
     print(f'Number of classes: {num_classes}')
 
     # model
@@ -117,22 +126,23 @@ def train(args):
             step += 1
 
         correct = total = 0
-        with torch.no_grad():
-            for data in train_loader:
-                inputs, labels = data['pointcloud'].to(
-                    device).float(), data['class'].to(device)
-                outputs, __, __ = pointnet(inputs.transpose(1, 2))
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-            val_acc = 100. * correct / total
+        if valid_loader:
+            with torch.no_grad():
+                for data in valid_loader:
+                    inputs, labels = data['pointcloud'].to(
+                        device).float(), data['class'].to(device)
+                    outputs, __, __ = pointnet(inputs.transpose(1, 2))
+                    _, predicted = torch.max(outputs.data, 1)
+                    total += labels.size(0)
+                    correct += (predicted == labels).sum().item()
+                val_acc = correct / total
 
-            # build tensorboard update
-            scalar_update_list = build_tensorboard_scalars(
-                tags=['Validation Accuracy'], scalars=[val_acc], steps=[step])
+                # build tensorboard update
+                scalar_update_list = build_tensorboard_scalars(
+                    tags=['Validation Accuracy'], scalars=[val_acc], steps=[step])
 
-            tensorboard_vis.update_writer({'scalar': scalar_update_list})
-            print('Valid accuracy: %d %%' % val_acc)
+                tensorboard_vis.update_writer({'scalar': scalar_update_list})
+                print('Valid accuracy: %d %%' % 100 * val_acc)
 
         # save the model
         checkpoint = os.path.join(

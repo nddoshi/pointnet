@@ -7,8 +7,8 @@ import plotly.subplots
 import plotly.graph_objects as pgo
 from torch.utils.data import Dataset
 
-# import source.polyhedron_utils
-import polyhedron_utils
+import source.polyhedron_utils
+# import polyhedron_utils
 
 
 class PolyhedronDataSet(Dataset):
@@ -95,29 +95,29 @@ class PolyhedronDataSet(Dataset):
         return data
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    pc_type = 'ideal_point_cloud'
-    data_dir = '/home/nddoshi/Research/learning_sandbox/datasets/Polygon'
+#     pc_type = 'ideal_point_cloud'
+#     data_dir = '/home/nddoshi/Research/learning_sandbox/datasets/Polygon'
 
-    dataset = PolyhedronDataSet(
-        pc_type=pc_type, data_dir=data_dir,
-        transform=polyhedron_utils.train_transforms(scale=0.02))
+#     dataset = PolyhedronDataSet(
+#         pc_type=pc_type, data_dir=data_dir,
+#         transform=polyhedron_utils.train_transforms(scale=0.02))
 
-    sample_ind = np.random.randint(0, dataset.__len__()-1)
-    sample = dataset.__getitem__(sample_ind)
-    print(sample['class'])
-    print(os.path.splitext(dataset.data[sample_ind])[0] + '.html')
-    label = dataset.labels[sample_ind]
-    nface = dataset.nfaces[sample_ind]
-    ncols = 2
-    fig = plotly.subplots.make_subplots(rows=2, cols=ncols,
-                                        specs=[[{"type": "scene"}] * ncols]*2,
-                                        subplot_titles=[f"Class: {label}, Sides: {nface}"]*2*ncols)
+#     sample_ind = np.random.randint(0, dataset.__len__()-1)
+#     sample = dataset.__getitem__(sample_ind)
+#     print(sample['class'])
+#     print(os.path.splitext(dataset.data[sample_ind])[0] + '.html')
+#     label = dataset.labels[sample_ind]
+#     nface = dataset.nfaces[sample_ind]
+#     ncols = 2
+#     fig = plotly.subplots.make_subplots(rows=2, cols=ncols,
+#                                         specs=[[{"type": "scene"}] * ncols]*2,
+#                                         subplot_titles=[f"Class: {label}, Sides: {nface}"]*2*ncols)
 
-    for i in range(2 * ncols):
-        plot_data = dataset.plot_sample(sample_ind)
-        fig.add_trace(plot_data, row=i//ncols + 1, col=i % ncols + 1)
+#     for i in range(2 * ncols):
+#         plot_data = dataset.plot_sample(sample_ind)
+#         fig.add_trace(plot_data, row=i//ncols + 1, col=i % ncols + 1)
 
-    print(dataset.class_dict)
-    fig.show()
+#     print(dataset.class_dict)
+#     fig.show()

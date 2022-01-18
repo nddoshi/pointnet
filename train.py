@@ -1,26 +1,24 @@
 import argparse
 import ipdb
-import math
+import numpy as np
 import random
 import os
 import time
 import torch
-import numpy as np
-
-from path import Path
-from source import model
-from source import dataset
-from source import utils
-from source.args import parse_train_args
-from torchvision import transforms
 from torch.utils.data import DataLoader
 
+from source import model
+from source import polyhedron_dataset
+from source import polyhedron_utils
+from source.args import parse_train_args
 from source.visualization import TensorBoardVis
 
 random.seed = 42
 
 
 def pointnetloss(outputs, labels, m3x3, m64x64, alpha=0.0001):
+    ''' loss function '''
+
     criterion = torch.nn.NLLLoss()
     bs = outputs.size(0)
     id3x3 = torch.eye(3, requires_grad=True).repeat(bs, 1, 1)
@@ -49,35 +47,29 @@ def build_tensorboard_scalars(tags, scalars, steps):
 
 def train(args):
 
-    path = Path(args.dataset_dir)
-    folders = [dir for dir in sorted(
-        os.listdir(path)) if os.path.isdir(path/dir)]
-    classes = {folder: i for i, folder in enumerate(folders)}
-
-    train_transforms = transforms.Compose([
-        utils.PointSampler(1024),
-        utils.Normalize(),
-        utils.RandRotation_z(),
-        utils.RandomNoise(),
-        utils.ToTensor()
-    ])
+    # device
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(f"Using {device} for training")
-    pointnet = model.PointNet()
-    pointnet.to(device)
-    optimizer = torch.optim.Adam(pointnet.parameters(), lr=args.lr)
 
-    train_ds = dataset.PointCloudData(path, transform=train_transforms)
-    valid_ds = dataset.PointCloudData(
-        path, valid=True, folder='test', transform=train_transforms)
-    print('Train dataset size: ', len(train_ds))
-    print('Valid dataset size: ', len(valid_ds))
-    print('Number of classes: ', len(train_ds.classes))
-
+    # dataset
+    train_ds = polyhedron_dataset.PolyhedronDataSet(
+        pc_type=args.point_cloud_type, data_dir=args.dataset_dir,
+        transform=polyhedron_utils.train_transforms())
     train_loader = DataLoader(
         dataset=train_ds, batch_size=args.batch_size, shuffle=True)
-    valid_loader = DataLoader(dataset=valid_ds, batch_size=args.batch_size*2)
+    num_classes = len(np.unique(np.array(train_ds.labels)))
 
+    print(f'Train dataset size: {len(train_ds)}')
+    print(f'Number of classes: {num_classes}')
+
+    # model
+    pointnet = model.PointNet(classes=num_classes)
+    pointnet.to(device)
+
+    # optimizer
+    optimizer = torch.optim.Adam(pointnet.parameters(), lr=args.lr)
+
+    # saving checkpoints
     if not(os.path.isdir(args.save_model_path)):
         os.mkdir(args.save_model_path)
 
@@ -92,13 +84,22 @@ def train(args):
         pointnet.train()
         running_loss = 0.0
         for i, data in enumerate(train_loader, 0):
+
+            # get data
             inputs, labels = data['pointcloud'].to(
-                device).float(), data['category'].to(device)
+                device).float(), data['class'].to(device)
+
+            # not sure
             optimizer.zero_grad()
+
+            # current prediction
             outputs, m3x3, m64x64 = pointnet(inputs.transpose(1, 2))
 
+            # loss
             loss = pointnetloss(outputs, labels, m3x3, m64x64)
             loss.backward()
+
+            # optimize
             optimizer.step()
 
             # build tensorboard update
@@ -114,29 +115,10 @@ def train(args):
                 running_loss = 0.0
 
             step += 1
-        pointnet.eval()
-        correct = total = 0
 
-        # validation
-        if valid_loader:
-            with torch.no_grad():
-                for data in valid_loader:
-                    inputs, labels = data['pointcloud'].to(
-                        device).float(), data['category'].to(device)
-                    outputs, __, __ = pointnet(inputs.transpose(1, 2))
-                    _, predicted = torch.max(outputs.data, 1)
-                    total += labels.size(0)
-                    correct += (predicted == labels).sum().item()
-            val_acc = correct / total
-            # build tensorboard update
-            scalar_update_list = build_tensorboard_scalars(
-                tags=['Validation Accuracy'], scalars=[val_acc], steps=[step])
-
-            tensorboard_vis.update_writer({'scalar': scalar_update_list})
-            print('Valid accuracy: %d' % val_acc)
         # save the model
-
-        checkpoint = Path(args.save_model_path)/'save_'+str(epoch)+'.pth'
+        checkpoint = os.path.join(
+            args.save_model_path, 'polyhedron_classification_save_'+str(epoch)+'.pth')
         torch.save(pointnet.state_dict(), checkpoint)
         print('Model saved to ', checkpoint)
 

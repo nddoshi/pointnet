@@ -138,7 +138,7 @@ if __name__ == '__main__':
     # training dataset
     train_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args.point_cloud_type,
-        data_dir=os.path.join(args.dataset_dir, 'test'),
+        data_dir=os.path.join(args.dataset_dir, 'train'),
         transform=polyhedron_utils.train_transforms())
     train_loader = DataLoader(
         dataset=train_ds, batch_size=args.batch_size, shuffle=True)

@@ -12,7 +12,7 @@ def parse_train_args():
                         help='tensorboard log directory')
     parser.add_argument('--point_cloud_type', default='ideal_point_cloud', type=str,
                         help='ideal or drake point cloud')
-    parser.add_argument('--batch_size', default=32, type=int,
+    parser.add_argument('--batch_size', default=128, type=int,
                         help='training batch size')
     parser.add_argument('--lr', default=1e-3, type=float,
                         help='learning rate')

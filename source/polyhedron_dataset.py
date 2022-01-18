@@ -71,8 +71,7 @@ class PolyhedronDataSet(Dataset):
         if self.transform:
             pointcloud = self.transform(pointcloud)
 
-        return {'pointcloud': pointcloud,
-                'class': label}
+        return pointcloud, label
 
     def plot_sample(self, idx):
         ''' plot sample'''

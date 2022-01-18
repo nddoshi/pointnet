@@ -34,18 +34,18 @@ class PolyhedronDataSet(Dataset):
                     with open(os.path.join(dir_path, file), 'rb') as handle:
                         polyhedron_info = pickle.load(handle)
 
-                        polyhedron_dir_path = os.path.join(self.data_dir, 
-                                '_'.join(file.split('_')[:2]))
+                        polyhedron_dir_path = os.path.join(self.data_dir,
+                                                           '_'.join(file.split('_')[:2]))
 
                         self.labels.append(polyhedron_info['n_faces'])
 
                         if pc_type == 'drake_point_cloud':
                             drake_pc_path = os.path.join(polyhedron_dir_path,
-                                    os.path.splitext(file)[0] + '_drake_pc.npy')
+                                                         os.path.splitext(file)[0] + '_drake_pc.npy')
                             self.data.append(drake_pc_path)
                         elif pc_type == 'ideal_point_cloud':
-                            ideal_pc_path = os.path.join(polyhedron_dir_path, 
-                                    os.path.splitext(file)[0] + '_pc.npy')
+                            ideal_pc_path = os.path.join(polyhedron_dir_path,
+                                                         os.path.splitext(file)[0] + '_pc.npy')
                             self.data.append(ideal_pc_path)
                         else:
                             raise RuntimeError("incorrect point cloud type")

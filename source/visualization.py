@@ -8,8 +8,8 @@ from torch.utils.tensorboard import SummaryWriter
 class TensorBoardVis(object):
     def __init__(self, log_dir):
 
-        exp_name = self.generate_experiment_name(log_dir)
-        self.exp_path = os.path.join(log_dir, exp_name)
+        self.exp_name = self.generate_experiment_name(log_dir)
+        self.exp_path = os.path.join(log_dir, self.exp_name)
 
         if not (os.path.isdir(self.exp_path)):
             print(f"Making tensorboard log dir {self.exp_path}")

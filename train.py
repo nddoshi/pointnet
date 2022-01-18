@@ -138,7 +138,7 @@ if __name__ == '__main__':
     # training dataset
     train_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args.point_cloud_type,
-        data_dir=os.path.join(args.dataset_dir, 'train'),
+        data_dir=os.path.join(args.dataset_dir, 'test'),
         transform=polyhedron_utils.train_transforms())
     train_loader = DataLoader(
         dataset=train_ds, batch_size=args.batch_size, shuffle=True)
@@ -163,12 +163,14 @@ if __name__ == '__main__':
     # optimizer
     optimizer = torch.optim.Adam(pointnet.parameters(), lr=args.lr)
 
-    # saving checkpoints
-    if not(os.path.isdir(args.save_model_path)):
-        os.mkdir(args.save_model_path)
-
     # tensorboard visualization
     tensorboard_vis = TensorBoardVis(log_dir=args.tb_log_dir)
+
+    # saving checkpoints
+    checkpoint_dir = os.path.join(
+        args.save_model_path, tensorboard_vis.exp_name)
+    if not(os.path.isdir(checkpoint_dir)):
+        os.mkdir(checkpoint_dir)
 
     step = 0
     test_loop(dataloader=valid_loader, model=pointnet, lossfn=pointnetloss,
@@ -180,11 +182,11 @@ if __name__ == '__main__':
                           optimizer=optimizer, device=device,
                           tensorboard_vis=tensorboard_vis, step=step)
         test_loop(dataloader=valid_loader, model=pointnet, lossfn=pointnetloss,
-                  device=device)
+                  device=device, tensorboard_vis=tensorboard_vis, step=step)
 
         # save the model
         checkpoint = os.path.join(
-            args.save_model_path, 'polyhedron_classification_save_'+str(epoch)+'.pth')
+            checkpoint_dir, 'polyhedron_classification_save_'+str(epoch)+'.pth')
         torch.save(pointnet.state_dict(), checkpoint)
         print('Model saved to ', checkpoint)
 

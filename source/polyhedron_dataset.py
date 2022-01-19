@@ -93,6 +93,22 @@ class PolyhedronDataSet(Dataset):
 
         return data
 
+    def plot_pointclouds(self, pointclouds):
+        ''' plot a point cloud'''
+
+        pointclouds = pointclouds.numpy()
+
+        for pointcloud in pointclouds:
+            data = pgo.Scatter3d(x=pointcloud[0, :],
+                                 y=pointcloud[1, :],
+                                 z=pointcloud[2, :],
+                                 mode='markers',
+                                 marker_size=1,
+                                 marker_symbol='circle',
+                                 marker_color='rgba(0, 0, 255, 1)')
+            fig = pgo.Figure(data)
+            fig.show()
+
 
 # if __name__ == "__main__":
 

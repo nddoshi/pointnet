@@ -12,11 +12,11 @@ def default_transforms():
     ])
 
 
-def train_transforms(scale=0.02):
+def train_transforms(noise_scale=0.02):
     return transforms.Compose([
         Normalize(),
         RandRotation_z(),
-        RandomNoise(scale=scale),
+        RandomNoise(scale=noise_scale),
         ToTensor()
     ])
 

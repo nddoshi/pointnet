@@ -3,6 +3,7 @@ import ipdb
 import numpy as np
 import random
 import os
+from sklearn.metrics import confusion_matrix
 import time
 import torch
 from torch.utils.data import DataLoader
@@ -48,6 +49,7 @@ def build_tensorboard_scalars(tags, scalars, steps):
 def train_loop(dataloader, model, lossfn, optimizer, device,
                tensorboard_vis, step):
 
+    current = 0
     for batch, (X, y) in enumerate(dataloader):
 
         # get data
@@ -56,6 +58,8 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
         # current prediction and loss
         outputs, m3x3, m64x64 = model(inputs.transpose(1, 2))
         loss = lossfn(outputs, labels, m3x3, m64x64)
+        correct = (outputs.argmax(1) ==
+                   labels).type(torch.float).sum().item()
 
         # backprop
         optimizer.zero_grad()
@@ -63,26 +67,28 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
         optimizer.step()
 
         # print statistics
-        if batch % 10 == 0:
-            loss, current = loss.item(), batch * len(X)
+        # if batch % 10 == 0:
+        loss = loss.item()
+        current += len(X)
 
-            # build tensorboard update
-            scalar_update_list = build_tensorboard_scalars(
-                tags=['Loss/train'], scalars=[loss], steps=[step + current])
-            tensorboard_vis.update_writer({'scalar': scalar_update_list})
+        # build tensorboard update
+        scalar_update_list = build_tensorboard_scalars(
+            tags=['Loss/train'], scalars=[loss], steps=[step + current])
+        tensorboard_vis.update_writer({'scalar': scalar_update_list})
 
-            print(
-                f"loss: {loss:>7f}  [{current:>5d}/{len(dataloader.dataset):>5d}]")
+        print(
+            f"loss: {loss:>7f}, accuracy: {100 * correct/len(labels)}%, [{current:>5d}/{len(dataloader.dataset):>5d}]")
 
     return step + current
 
 
 def test_loop(dataloader, model, lossfn, device, tensorboard_vis, step):
 
-    size = len(dataloader.dataset)
-    num_batches = len(dataloader)
-    test_loss, correct = 0, 0
+    # all_labels, all_preds = [], []
 
+    test_loss, correct = 0, 0
+    size, num_batches = 0, 0
+    # current = 0
     with torch.no_grad():
         for X, y in dataloader:
             # get data
@@ -92,6 +98,14 @@ def test_loop(dataloader, model, lossfn, device, tensorboard_vis, step):
             test_loss += lossfn(outputs, labels, m3x3, m64x64).item()
             correct += (outputs.argmax(1) ==
                         labels).type(torch.float).sum().item()
+            # all_labels.extend(labels.tolist())
+            # all_preds.extend(outputs.argmax(1).tolist())
+            # current += len(X)
+            # print(
+            # f"loss: {test_loss:>7f}, accurary: {100 * correct/len(labels)}%, [{current:>5d}/{len(dataloader.dataset):>5d}]")
+            size += len(X)
+            num_batches += 1
+
     test_loss /= num_batches
     correct /= size
 
@@ -102,28 +116,7 @@ def test_loop(dataloader, model, lossfn, device, tensorboard_vis, step):
     tensorboard_vis.update_writer({'scalar': scalar_update_list})
 
     print(
-        f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
-
-# def run(args):
-
-    #   correct = total = 0
-    #    if valid_loader:
-    #         with torch.no_grad():
-    #             for data in valid_loader:
-    #                 inputs, labels = data['pointcloud'].to(
-    #                     device).float(), data['class'].to(device)
-    #                 outputs, __, __ = pointnet(inputs.transpose(1, 2))
-    #                 _, predicted = torch.max(outputs.data, 1)
-    #                 total += labels.size(0)
-    #                 correct += (predicted == labels).sum().item()
-    #             val_acc = correct / total
-
-    #             # build tensorboard update
-    #             scalar_update_list = build_tensorboard_scalars(
-    #                 tags=['Validation Accuracy'], scalars=[val_acc], steps=[step])
-
-    #             tensorboard_vis.update_writer({'scalar': scalar_update_list})
-    #             print('Valid accuracy: %d %%' % 100 * val_acc)
+        f"Test Error:  Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
 
 if __name__ == '__main__':
@@ -139,16 +132,17 @@ if __name__ == '__main__':
     train_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args.point_cloud_type,
         data_dir=os.path.join(args.dataset_dir, 'train'),
-        transform=polyhedron_utils.train_transforms())
+        transform=polyhedron_utils.train_transforms(noise_scale=0.02))
     train_loader = DataLoader(
         dataset=train_ds, batch_size=args.batch_size, shuffle=True)
 
     # testing dataset
     valid_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args.point_cloud_type,
-        data_dir=os.path.join(args.dataset_dir, 'test'),
+        data_dir=os.path.join(args.dataset_dir, 'train'),
         transform=polyhedron_utils.default_transforms())
-    valid_loader = DataLoader(dataset=valid_ds, batch_size=args.batch_size*2)
+    valid_loader = DataLoader(dataset=valid_ds, batch_size=args.batch_size,
+                              shuffle=True)
 
     # print dateset info
     num_classes = len(np.unique(np.array(train_ds.labels)))
@@ -167,10 +161,10 @@ if __name__ == '__main__':
     tensorboard_vis = TensorBoardVis(log_dir=args.tb_log_dir)
 
     # saving checkpoints
-    checkpoint_dir = os.path.join(
-        args.save_model_path, tensorboard_vis.exp_name)
-    if not(os.path.isdir(checkpoint_dir)):
-        os.mkdir(checkpoint_dir)
+    # checkpoint_dir = os.path.join(
+    #     args.save_model_path, tensorboard_vis.exp_name)
+    # if not(os.path.isdir(checkpoint_dir)):
+    #     os.mkdir(checkpoint_dir)
 
     step = 0
     test_loop(dataloader=valid_loader, model=pointnet, lossfn=pointnetloss,
@@ -181,14 +175,15 @@ if __name__ == '__main__':
         step = train_loop(dataloader=train_loader, model=pointnet, lossfn=pointnetloss,
                           optimizer=optimizer, device=device,
                           tensorboard_vis=tensorboard_vis, step=step)
+        # print("----------------Test---------------")
         test_loop(dataloader=valid_loader, model=pointnet, lossfn=pointnetloss,
                   device=device, tensorboard_vis=tensorboard_vis, step=step)
 
         # save the model
-        checkpoint = os.path.join(
-            checkpoint_dir, 'polyhedron_classification_save_'+str(epoch)+'.pth')
-        torch.save(pointnet.state_dict(), checkpoint)
-        print('Model saved to ', checkpoint)
+        # checkpoint = os.path.join(
+        #     checkpoint_dir, 'polyhedron_classification_save_'+str(epoch)+'.pth')
+        # torch.save(pointnet.state_dict(), checkpoint)
+        # print('Model saved to ', checkpoint)
 
-    tensorboard_vis.close_writer()
+    # tensorboard_vis.close_writer()
     print("Done!")

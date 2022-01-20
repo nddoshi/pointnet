@@ -8,9 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 class TensorBoardVis(object):
     def __init__(self, log_dir):
 
-        self.exp_name = self.generate_experiment_name(log_dir)
-        self.exp_path = os.path.join(log_dir, self.exp_name)
-
+        self.exp_path = log_dir
         if not (os.path.isdir(self.exp_path)):
             print(f"Making tensorboard log dir {self.exp_path}")
             os.mkdir(self.exp_path)
@@ -24,19 +22,6 @@ class TensorBoardVis(object):
             self.writer.add_scalar(**scalar)
 
         self.writer.flush()
-
-    def generate_experiment_name(self, log_dir):
-        ''' generate experiment name'''
-
-        prev_exps = os.listdir(log_dir)
-        num_prev_exp = 1
-        for prev_exp in prev_exps:
-            prev_exp_path = os.path.join(log_dir, prev_exp)
-            if os.path.isdir(prev_exp_path) and "exp" in prev_exp:
-                num_prev_exp += 1
-
-        date_string = datetime.datetime.now().strftime("%m-%d-%Y_%H:%M:%S")
-        return f"exp_{num_prev_exp:03d}_{date_string}"
 
     def close_writer(self):
         ''' close the summary writer'''

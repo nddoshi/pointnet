@@ -6,6 +6,19 @@ import subprocess
 import torch
 
 
+def load_experiment(args, model, optimizer):
+    ''' load experiment'''
+
+    checkpoint_path = os.path.join(
+        args.load_dir, 'model_%d.pth' % args.resume_epoch)
+    print(f"Loading model from {checkpoint_path}")
+    checkpoint = torch.load(checkpoint_path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['opt_state_dict'])
+
+    return model, optimizer
+
+
 def save_experiment(args):
     ''' save experiment '''
 
@@ -28,6 +41,8 @@ def save_experiment(args):
     # add commit has to args
     args_dict = vars(args)
     args_dict['commit'] = get_commit_hash()
+    args_dict['tb_log_dir'] = tensorboard_save_dir
+    args_dict['save_dir'] = experiment_save_dir
 
     # save args
     with open(os.path.join(experiment_save_dir, 'args.txt'), 'w') as f:

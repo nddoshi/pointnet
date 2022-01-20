@@ -59,6 +59,10 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(pointnet.parameters(), lr=args.lr)
     lossfn = train_utils.pointnetloss
 
+    if args.resume_epoch > 0:
+        pointnet, optimizer = save_utils.load_experiment(
+            args=args, model=pointnet, optimizer=optimizer)
+
     # tensorboard visualization
     if args.save_flag:
         tensorboard_vis = TensorBoardVis(log_dir=tb_save_dir)
@@ -82,7 +86,7 @@ if __name__ == '__main__':
             device=device, tensorboard_vis=tensorboard_vis, step=step)
 
         # save the model
-        if args.save_flag and epoch % args.save_freq == 0:
+        if args.save_flag and epoch+1 % args.save_freq == 0:
             save_utils.save_checkpoint(
                 save_dir=exp_save_dir,
                 epoch=epoch,

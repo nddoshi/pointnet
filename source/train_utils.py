@@ -109,7 +109,7 @@ def test_loop(dataloader, model, lossfn, device, tensorboard_vis, step):
     if tensorboard_vis:
         # build tensorboard update
         scalar_update_list = build_tensorboard_scalars(
-            tags=['Loss/test per step', 'Accuracy/train per step'],
+            tags=['Loss/test per step', 'Accuracy/test per step'],
             scalars=[total_loss, total_correct],
             steps=[step, step])
         tensorboard_vis.update_writer({'scalar': scalar_update_list})

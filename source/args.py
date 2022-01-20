@@ -10,6 +10,10 @@ def parse_train_args():
                         help='experiment name')
     parser.add_argument('--dataset_dir', default='../datasets/Polygon/', type=str,
                         help='dataset directory')
+    parser.add_argument('--resume_epoch', default=0, type=int,
+                        help='iteration to resume training on')
+    parser.add_argument('--load_dir', default="", type=str,
+                        help='directory of experiment to load')
 
     # hyper parameters
     parser.add_argument('--point_cloud_type', default='ideal_point_cloud', type=str,

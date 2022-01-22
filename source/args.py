@@ -48,11 +48,10 @@ def parse_test_args():
     #  experiment settings
     parser.add_argument('--dataset_dir', default='../datasets/Polygon/', type=str,
                         help='dataset directory')
-    parser.add_argument('--test_model_path', default='./checkpoints/exp_006_01-18-2022_18:57:00/polyhedron_classification_save_14.pth', type=str,
-                        help='path of trained model')
-    parser.add_argument('--point_cloud_type', default='ideal_point_cloud', type=str,
-                        help='ideal or drake point cloud')
-
+    parser.add_argument('--load_dir', default="", type=str,
+                        help='directory of experiment to load')
+    parser.add_argument('--resume_epoch', default=-1, type=int,
+                        help='iteration to use for testing (default = -1 = last)')
     args = parser.parse_args()
     print(' '.join(sys.argv))
     return args

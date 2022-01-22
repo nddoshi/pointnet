@@ -1,4 +1,4 @@
-from tabnanny import check
+import ipdb
 import numpy as np
 import random
 import os
@@ -23,6 +23,7 @@ if __name__ == '__main__':
 
     # setup experiment
     if args.save_flag:
+        print("Saving experiment...")
         exp_save_dir, tb_save_dir = save_utils.save_experiment(args=args)
 
     # device
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     # testing dataset
     valid_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args.point_cloud_type,
-        data_dir=os.path.join(args.dataset_dir, 'train'),
+        data_dir=os.path.join(args.dataset_dir, 'test'),
         transform=polyhedron_utils.default_transforms())
     valid_loader = DataLoader(dataset=valid_ds, batch_size=args.batch_size,
                               shuffle=True)
@@ -60,8 +61,10 @@ if __name__ == '__main__':
     lossfn = train_utils.pointnetloss
 
     if args.resume_epoch > 0:
-        pointnet, optimizer = save_utils.load_experiment(
-            args=args, model=pointnet, optimizer=optimizer)
+        checkpoint, _ = save_utils.load_experiment(
+            args=args)
+        pointnet.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['opt_state_dict'])
 
     # tensorboard visualization
     if args.save_flag:
@@ -70,9 +73,10 @@ if __name__ == '__main__':
         tensorboard_vis = None
 
     step = 0
-    train_utils.test_loop(dataloader=valid_loader, model=pointnet,
-                          lossfn=train_utils.pointnetloss,
-                          device=device, tensorboard_vis=tensorboard_vis, step=step)
+    train_utils.test_loop(
+        dataloader=valid_loader, train_dataset=train_ds,
+        model=pointnet, lossfn=lossfn, device=device,
+        tensorboard_vis=tensorboard_vis, step=step)
 
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}\n-------------------------------")
@@ -82,8 +86,9 @@ if __name__ == '__main__':
             tensorboard_vis=tensorboard_vis, step=step)
 
         test_loss, test_accuracy, _, _, _ = train_utils.test_loop(
-            dataloader=valid_loader, model=pointnet, lossfn=lossfn,
-            device=device, tensorboard_vis=tensorboard_vis, step=step)
+            dataloader=valid_loader, train_dataset=train_ds,
+            model=pointnet, lossfn=lossfn, device=device,
+            tensorboard_vis=tensorboard_vis, step=step)
 
         # save the model
         if args.save_flag and epoch+1 % args.save_freq == 0:

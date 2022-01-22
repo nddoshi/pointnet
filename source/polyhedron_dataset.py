@@ -31,8 +31,7 @@ class PolyhedronDataSet(Dataset):
 
                 # get polygon label
                 for file in info_files:
-                    # print(os.path.splitext(file)[0])
-                    # load file
+
                     with open(os.path.join(dir_path, file), 'rb') as handle:
                         polyhedron_info = pickle.load(handle)
 
@@ -52,10 +51,11 @@ class PolyhedronDataSet(Dataset):
                         else:
                             raise RuntimeError("incorrect point cloud type")
 
-        ct, self.class_dict = 0, {}
+        ct, self.class_dict, self.label_dict = 0, {}, {}
         for nface in sorted(self.nfaces):
             if not nface in self.class_dict:
                 self.class_dict[nface] = ct
+                self.label_dict[ct] = nface
                 ct += 1
 
         self.labels = [self.class_dict[nface] for nface in self.nfaces]
@@ -72,6 +72,10 @@ class PolyhedronDataSet(Dataset):
             pointcloud = self.transform(pointcloud)
 
         return pointcloud, label
+
+    def get_nsides_from_labels(self, labels):
+        ''' get number of sides from polygon labels'''
+        return [self.label_dict[label] for label in labels]
 
     def plot_sample(self, idx):
         ''' plot sample'''

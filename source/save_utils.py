@@ -6,17 +6,32 @@ import subprocess
 import torch
 
 
-def load_experiment(args, model, optimizer):
+def load_experiment(args):
     ''' load experiment'''
+
+    # load args
+    with open(os.path.join(args.load_dir, 'args.txt'), 'r') as f:
+        args_dict = json.load(f)
+
+    # load model from last epoch
+    resume_epoch = 0
+    if args.resume_epoch == -1:
+        checkpoints = [chkpt for chkpt in os.listdir(args.load_dir)
+                       if '.pth' in chkpt]
+        for chkpt in checkpoints:
+            print(chkpt)
+            checkpoint_epoch = int((os.path.splitext(chkpt)[0]).split('_')[1])
+            if checkpoint_epoch > resume_epoch:
+                resume_epoch = checkpoint_epoch
+
+        args.resume_epoch = resume_epoch
 
     checkpoint_path = os.path.join(
         args.load_dir, 'model_%d.pth' % args.resume_epoch)
     print(f"Loading model from {checkpoint_path}")
     checkpoint = torch.load(checkpoint_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['opt_state_dict'])
 
-    return model, optimizer
+    return checkpoint, args_dict
 
 
 def save_experiment(args):

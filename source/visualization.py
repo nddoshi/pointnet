@@ -29,7 +29,7 @@ def plot_confusion_matrix(dataset, preds, true_vals):
 
     # plot
     plt.figure(figsize=(12, 7))
-    return sn.heatmap(df_cm, annot=True).get_figure()
+    return sn.heatmap(df_cm, annot=True, cmap='Greens').get_figure()
 
 
 class TensorBoardVis(object):

@@ -5,6 +5,10 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 
+def confusion_matrix(object):
+    pass
+
+
 class TensorBoardVis(object):
     def __init__(self, log_dir):
 

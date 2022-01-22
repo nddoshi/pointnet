@@ -97,9 +97,14 @@ def test_loop(dataloader, model, lossfn, device, tensorboard_vis, step):
                               labels).type(torch.float).sum().item()
 
             # append
-            all_inputs.append(inputs.numpy())
-            all_preds.append(predictions.numpy())
-            all_labels.append(labels.numpy())
+            if device.type != 'cpu':
+                all_inputs.append(inputs.cpu().numpy())
+                all_preds.append(predictions.cpu().numpy())
+                all_labels.append(labels.cpu().numpy())
+            else:
+                all_inputs.append(inputs.numpy())
+                all_preds.append(predictions.numpy())
+                all_labels.append(labels.numpy())
 
     total_loss /= len(dataloader)
     total_correct /= len(dataloader.dataset)

@@ -72,14 +72,14 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
         loss = loss.item()
         accuracy = correct/len(labels)
         print(
-            f"loss: {loss:>7f}, accuracy: {100*accuracy}%, [{batch*len(X):>5d}/{len(dataloader.dataset):>5d}]")
+            f"loss: {loss:>7f}, accuracy: {100*accuracy}%, [{(batch+1)*len(X):>5d}/{len(dataloader.dataset):>5d}]")
 
         # build tensorboard update
         if tensorboard_vis:
             scalar_update_list = build_tensorboard_scalars(
                 tags=['Loss/train per step', 'Accuracy/train per step'],
                 scalars=[loss, accuracy],
-                steps=[step + batch, step + batch])
+                steps=[step + batch + 1, step + batch + 1])
 
             tensorboard_vis.update_writer({'scalar': scalar_update_list})
 
@@ -93,14 +93,14 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
             'figure': visualization.plot_confusion_matrix(
                 dataset=dataloader.dataset, preds=all_preds,
                 true_vals=all_labels),
-            'global_step': step
+            'global_step': step + batch + 1
         }]
 
         tensorboard_vis.update_writer({'figure': figure_update_list})
 
     return (total_loss/len(dataloader),
             total_correct/len(dataloader.dataset),
-            step + batch)
+            step + batch + 1)
 
 
 def test_loop(dataloader, train_dataset, model, lossfn, device,

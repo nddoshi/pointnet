@@ -21,6 +21,15 @@ def train_transforms(noise_scale=0.02):
     ])
 
 
+def train_transforms_3DRot(noise_scale=0.02):
+    return transforms.Compose([
+        Normalize(),
+        RandRotation_S03(),
+        RandomNoise(scale=noise_scale),
+        ToTensor()
+    ])
+
+
 class Normalize(object):
     def __call__(self, pointcloud):
         assert len(pointcloud.shape) == 2
@@ -42,6 +51,32 @@ class RandRotation_z(object):
 
         rot_pointcloud = rot_matrix.dot(pointcloud.T).T
         return rot_pointcloud
+
+
+class RandRotation_S03(object):
+    def __call__(self, pointcloud):
+
+        assert len(pointcloud.shape) == 2
+
+        x1 = np.random.uniform(low=0, high=1.)
+        x2 = np.random.uniform(low=0, high=1.)
+        x3 = np.random.uniform(low=0, high=1.)
+
+        R = np.identity(3)
+        R[0, 0] = R[1, 1] = np.cos(2 * np.pi * x1)
+        R[0, 1] = -np.sin(2 * np.pi * x1)
+        R[1, 1] = np.sin(2 * np.pi * x1)
+
+        v = np.array([
+            np.cos(2 * np.pi * x2) * np.sqrt(x3),
+            np.sin(2 * np.pi * x2) * np.sqrt(x3),
+            np.sqrt(1 - x3)
+        ])
+
+        H = np.identity(3) - 2 * np.outer(v, v)
+        M = -np.dot(H, R)
+
+        return M.dot(pointcloud.T).T
 
 
 class RandomNoise(object):

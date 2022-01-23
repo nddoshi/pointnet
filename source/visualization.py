@@ -24,7 +24,7 @@ def plot_confusion_matrix(dataset, preds, true_vals):
 
     # confusion matrix
     cm = confusion_matrix(true_vals, preds)
-    df_cm = pd.DataFrame(cm/np.sum(cm) * 10, index=[i for i in classes],
+    df_cm = pd.DataFrame(cm/np.sum(cm), index=[i for i in classes],
                          columns=[i for i in classes])
 
     # plot

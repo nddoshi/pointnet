@@ -34,7 +34,8 @@ if __name__ == '__main__':
     train_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args.point_cloud_type,
         data_dir=os.path.join(args.dataset_dir, 'train'),
-        transform=polyhedron_utils.train_transforms(noise_scale=args.noise_scale))
+        transform=polyhedron_utils.train_transforms_3DRot(
+            noise_scale=args.noise_scale))
     train_loader = DataLoader(
         dataset=train_ds, batch_size=args.batch_size, shuffle=True)
 

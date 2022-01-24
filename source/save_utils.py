@@ -73,7 +73,7 @@ def save_checkpoint(save_dir, epoch, model, optimizer, stats):
     stats['opt_state_dict'] = optimizer.state_dict()
 
     checkpoint_fname = os.path.join(
-        save_dir, f"model_{epoch}.pth")
+        save_dir, f"model_{epoch+1}.pth")
     torch.save(stats, checkpoint_fname)
     print('Model saved to ', checkpoint_fname)
 

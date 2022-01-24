@@ -92,7 +92,9 @@ if __name__ == '__main__':
             tensorboard_vis=tensorboard_vis, step=step)
 
         # save the model
-        if args.save_flag and epoch+1 % args.save_freq == 0:
+        print((epoch+1) % args.save_freq)
+        if args.save_flag and ((epoch+1) % args.save_freq == 0):
+            ipdb.set_trace()
             save_utils.save_checkpoint(
                 save_dir=exp_save_dir,
                 epoch=epoch,

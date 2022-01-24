@@ -69,9 +69,9 @@ class PolyhedronDataSet(Dataset):
         label = self.labels[idx]
 
         if self.transform:
-            pointcloud = self.transform(pointcloud)
+            pointcloud_transformed = self.transform(pointcloud)
 
-        return pointcloud, label
+        return pointcloud_transformed, label
 
     def get_nsides_from_labels(self, labels):
         ''' get number of sides from polygon labels'''
@@ -84,34 +84,28 @@ class PolyhedronDataSet(Dataset):
         pointcloud = np.load(self.data[idx])
 
         if self.transform:
-            pointcloud = self.transform(pointcloud)
+            pointcloud_transformed = self.transform(pointcloud)
 
-        # plot sampled points
+        data = [self.pointcloud_scatter(pointcloud, color='rgba(0, 0, 255, 1)'),
+                self.pointcloud_scatter(pointcloud_transformed,
+                                        color='rgba(0, 255, 0, 1)')]
+        return data
+
+    def pointcloud_scatter(self, pointcloud, color):
+        ''' plot a point cloud'''
+
+        # pointclouds = pointclouds.numpy()
+
         data = pgo.Scatter3d(x=pointcloud[:, 0],
                              y=pointcloud[:, 1],
                              z=pointcloud[:, 2],
                              mode='markers',
                              marker_size=1,
                              marker_symbol='circle',
-                             marker_color='rgba(0, 0, 255, 1)')
-
+                             marker_color=color)
         return data
-
-    def plot_pointclouds(self, pointclouds):
-        ''' plot a point cloud'''
-
-        pointclouds = pointclouds.numpy()
-
-        for pointcloud in pointclouds:
-            data = pgo.Scatter3d(x=pointcloud[0, :],
-                                 y=pointcloud[1, :],
-                                 z=pointcloud[2, :],
-                                 mode='markers',
-                                 marker_size=1,
-                                 marker_symbol='circle',
-                                 marker_color='rgba(0, 0, 255, 1)')
-            fig = pgo.Figure(data)
-            fig.show()
+        # fig = pgo.Figure(data)
+        # fig.show()
 
 
 # if __name__ == "__main__":

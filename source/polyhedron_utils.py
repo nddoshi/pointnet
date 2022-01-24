@@ -1,6 +1,8 @@
+import ipdb
 import numpy as np
 import math
 import random
+import scipy as scp
 import torch
 from torchvision import transforms
 
@@ -54,29 +56,32 @@ class RandRotation_z(object):
 
 
 class RandRotation_S03(object):
+
     def __call__(self, pointcloud):
 
         assert len(pointcloud.shape) == 2
 
-        x1 = np.random.uniform(low=0, high=1.)
-        x2 = np.random.uniform(low=0, high=1.)
-        x3 = np.random.uniform(low=0, high=1.)
+        R = scp.spatial.transform.Rotation.random().as_matrix()
 
-        R = np.identity(3)
-        R[0, 0] = R[1, 1] = np.cos(2 * np.pi * x1)
-        R[0, 1] = -np.sin(2 * np.pi * x1)
-        R[1, 1] = np.sin(2 * np.pi * x1)
+        # x1 = np.random.uniform(low=0, high=1.)
+        # x2 = np.random.uniform(low=0, high=1.)
+        # x3 = np.random.uniform(low=0, high=1.)
 
-        v = np.array([
-            np.cos(2 * np.pi * x2) * np.sqrt(x3),
-            np.sin(2 * np.pi * x2) * np.sqrt(x3),
-            np.sqrt(1 - x3)
-        ])
+        # R = np.identity(3)
+        # R[0, 0] = R[1, 1] = np.cos(2 * np.pi * x1)
+        # R[0, 1] = -np.sin(2 * np.pi * x1)
+        # R[1, 1] = np.sin(2 * np.pi * x1)
 
-        H = np.identity(3) - 2 * np.outer(v, v)
-        M = -np.dot(H, R)
+        # v = np.array([
+        #     np.cos(2 * np.pi * x2) * np.sqrt(x3),
+        #     np.sin(2 * np.pi * x2) * np.sqrt(x3),
+        #     np.sqrt(1 - x3)
+        # ])
 
-        return M.dot(pointcloud.T).T
+        # H = np.identity(3) - 2 * np.outer(v, v)
+        # M = -np.matmul(H, R)
+
+        return R.dot(pointcloud.T).T
 
 
 class RandomNoise(object):

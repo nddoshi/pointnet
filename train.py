@@ -13,13 +13,16 @@ from source import save_utils
 from source.args import parse_train_args
 from source.visualization import TensorBoardVis
 
-random.seed = 42
-
 
 if __name__ == '__main__':
 
     # arguments
     args = parse_train_args()
+
+    # set random seed
+    torch.manual_seed(args.random_seed)
+    random.seed(args.random_seed)
+    np.random.seed(args.random_seed)
 
     # setup experiment
     if args.save_flag:

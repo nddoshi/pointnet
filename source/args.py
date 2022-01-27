@@ -16,6 +16,8 @@ def parse_train_args():
                         help='directory of experiment to load')
 
     # hyper parameters
+    parser.add_argument('--random_seed', default=42, type=int,
+                        help='seed for random number generator')
     parser.add_argument('--point_cloud_type', default='ideal_point_cloud', type=str,
                         help='ideal or drake point cloud')
     parser.add_argument('--batch_size', default=32, type=int,

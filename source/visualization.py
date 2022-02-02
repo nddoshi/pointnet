@@ -53,6 +53,10 @@ class TensorBoardVis(object):
             for figure in update['figure']:
                 self.writer.add_figure(**figure)
 
+        if 'mesh' in update:
+            for mesh in update['mesh']:
+                self.writer.add_mesh(**mesh)
+
         self.writer.flush()
 
     def close_writer(self):

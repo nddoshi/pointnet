@@ -89,7 +89,7 @@ if __name__ == '__main__':
             optimizer=optimizer, device=device,
             tensorboard_vis=tensorboard_vis, step=step)
 
-        test_loss, test_accuracy, _, _, _ = train_utils.test_loop(
+        test_loss, test_accuracy, inputs, preds, outputs = train_utils.test_loop(
             dataloader=valid_loader, train_dataset=train_ds,
             model=pointnet, lossfn=lossfn, device=device,
             tensorboard_vis=tensorboard_vis, step=step)

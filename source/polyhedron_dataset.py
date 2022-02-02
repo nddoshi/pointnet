@@ -75,7 +75,10 @@ class PolyhedronDataSet(Dataset):
 
     def get_nsides_from_labels(self, labels):
         ''' get number of sides from polygon labels'''
-        return [self.label_dict[label] for label in labels]
+        if isinstance(labels, list):
+            return [self.label_dict[label] for label in labels]
+        else:
+            return self.label_dict[labels]
 
     def plot_sample(self, idx):
         ''' plot sample'''

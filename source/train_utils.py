@@ -25,12 +25,14 @@ def select_mesh_samples_to_plot(correct):
     ''' sample one correctly predict and one incorrectly predicted mesh to plot'''
 
     # construct index of correct/incorrectly predicted training data
-    ind_correct = (correct == True).nonzero()
-    ind_incorrect = (correct == False).nonzero()
+    ind_correct = (correct == True).nonzero().squeeze()
+    ind_incorrect = (correct == False).nonzero().squeeze()
 
     # sample one of each
-    correct_sample = np.random.choice(ind_correct)
-    incorrect_sample = np.random.choice(ind_incorrect)
+    correct_sample = ind_correct[np.random.randint(
+        low=0, high=len(ind_correct))]
+    incorrect_sample = ind_incorrect[np.random.randint(
+        low=0, high=len(ind_incorrect))]
 
     return correct_sample, incorrect_sample
 

@@ -1,6 +1,5 @@
 import ipdb
 import numpy as np
-import random
 import torch
 
 from source import visualization
@@ -22,10 +21,24 @@ def pointnetloss(outputs, labels, m3x3, m64x64, alpha=0.0001):
         torch.norm(diff3x3)+torch.norm(diff64x64)) / float(batch_size)
 
 
+def select_mesh_samples_to_plot(correct):
+    ''' sample one correctly predict and one incorrectly predicted mesh to plot'''
+
+    # construct index of correct/incorrectly predicted training data
+    ind_correct = np.nonzero(correct.numpy())[0]
+    ind_incorrect = np.nonzero((~correct).numpy())[0]
+
+    # sample one of each
+    correct_sample = np.random.choice(ind_correct)
+    incorrect_sample = np.random.choice(ind_incorrect)
+
+    return correct_sample, incorrect_sample
+
+
 def build_tensorboard_scalars(tags, scalars, steps):
     ''' build scalars for tensorboard'''
 
-    assert len(tags) == len(scalars) and len(scalars) == len(steps)
+    assert len(tags) == len(scalars) == len(steps)
 
     scalar_updates = []
     for tag, scalar, step in zip(tags, scalars, steps):
@@ -36,11 +49,36 @@ def build_tensorboard_scalars(tags, scalars, steps):
     return scalar_updates
 
 
+def build_tensorboard_meshes(tags, xyzs, crit_pt_inds, colors, global_steps):
+    ''' build tensorboard mesh updates'''
+
+    assert len(tags) == len(xyzs) == len(
+        crit_pt_inds) == len(colors) == len(global_steps)
+
+    mesh_updates = []
+    for tag, xyz, crit_pt_ind, color, global_step in zip(
+            tags, xyzs, crit_pt_inds, colors, global_steps):
+
+        pt_colors = xyz * 0 + torch.tensor(color)
+        crit_pts = np.unique(crit_pt_ind)
+        pt_colors[crit_pts, :] = torch.tensor([0.] * 3)
+        mesh_updates.append(
+            {'tag':  tag, 'vertices': xyz[None, :], 'colors': pt_colors[None, :],
+             'global_step': global_step})
+
+    return mesh_updates
+
+
 def train_loop(dataloader, model, lossfn, optimizer, device,
                tensorboard_vis=None, step=0):
+    ''' single epoch of training '''
 
+    num_samples = dataloader.batch_size * len(dataloader)  # total samples
     total_loss, total_correct = 0, 0
-    all_inputs, all_preds, all_labels, all_crit_pts = [], [], [], []
+    all_preds, all_labels = [-1] * num_samples, [-1] * num_samples
+
+    # random sampling for plotting
+    rand_batch = np.random.randint(0, len(dataloader) - 1)
 
     for batch, (X, y) in enumerate(dataloader):
 
@@ -51,8 +89,7 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
         outputs, crit_pt_inds, m3x3, m64x64 = model(inputs.transpose(1, 2))
         predicted_labels = outputs.argmax(1)
         loss = lossfn(outputs, labels, m3x3, m64x64)
-        correct = (predicted_labels ==
-                   labels).type(torch.float).sum().item()
+        correct = (predicted_labels == labels)
 
         # backprop
         optimizer.zero_grad()
@@ -60,22 +97,41 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
         optimizer.step()
 
         # append
+        all_preds[batch * dataloader.batch_size: (
+            batch+1) * dataloader.batch_size] = predicted_labels.tolist()
         if device.type == 'cpu':
-            all_inputs.extend(inputs.numpy())
-            all_preds.extend(predicted_labels.tolist())
-            all_labels.extend(labels.tolist())
-            all_crit_pts.extend(crit_pt_inds.numpy())
+            all_labels[batch * dataloader.batch_size: (
+                batch+1) * dataloader.batch_size] = labels.tolist()
         else:
-            all_inputs.extend(inputs.cpu().numpy())
-            all_preds.extend(predicted_labels.tolist())
-            all_labels.extend(labels.cpu().tolist())
-            all_crit_pts.extend(crit_pt_inds.cpu().numpy())
+            all_labels[batch * dataloader.batch_size: (
+                batch+1) * dataloader.batch_size] = labels.cpu().tolist()
 
-        # print statistics
+        # randomly sample correct/incorrect examples for point cloud viz
+        if (batch == rand_batch) and tensorboard_vis:
+
+            correct_sample, incorrect_sample = select_mesh_samples_to_plot(
+                correct=correct)
+
+            # build tensorboard mesh
+            tag_prefix = f"Train, {dataloader.dataset.get_nsides_from_labels(all_labels[correct_sample])} Faces/"
+            mesh_update_list = build_tensorboard_meshes(
+                tags=[tag_prefix + "correct", tag_prefix + "incorrect"],
+                xyzs=[inputs[correct_sample, :, :],
+                      inputs[incorrect_sample, :, :]],
+                crit_pt_inds=[crit_pt_inds[correct_sample, :, :],
+                              crit_pt_inds[incorrect_sample, :, :]],
+                colors=[[0., 255., 0, ], [255, 0., 0.]],
+                global_steps=[step + batch + 1, step + batch + 1])
+
+        # print batch statistics
         loss = loss.item()
-        accuracy = correct/len(labels)
+        accuracy = correct.type(torch.float).sum().item()/len(labels)
         print(
             f"loss: {loss:>7f}, accuracy: {100*accuracy}%, [{(batch+1)*len(X):>5d}/{len(dataloader.dataset):>5d}]")
+
+        # cumulative statistics
+        total_loss += loss
+        total_correct += accuracy
 
         # build tensorboard update
         if tensorboard_vis:
@@ -86,11 +142,8 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
 
             tensorboard_vis.update_writer({'scalar': scalar_update_list})
 
-        # cumulative statistics
-        total_loss += loss
-        total_correct += accuracy
-
     # plot confusion matrix once per epoch
+    # plot good/bad prediction meshes once per epoch
     if tensorboard_vis:
         figure_update_list = [{
             'tag': 'Confusion Matrix/train per step',
@@ -100,49 +153,9 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
             'global_step': step + batch + 1
         }]
 
-        tensorboard_vis.update_writer({'figure': figure_update_list})
-
-    # plot good/bad prediction meshes once per epoch
-    if tensorboard_vis:
-        ind_correct = [ind for ind, (label, pred) in enumerate(
-            zip(all_labels, all_preds)) if
-            label == pred]
-        ind_incorrect = [ind for ind, (label, pred) in enumerate(
-            zip(all_labels, all_preds)) if
-            label != pred]
-
-        correct_sample = random.sample(ind_correct, 1)[0]
-        incorrect_sample = random.sample(ind_incorrect, 1)[0]
-
-        camera_config = {
-            'cls': 'PerspectiveCamera',
-            'fov': 75,
-            'aspect': 0.9,
-        }
-        mesh_update_list = []
-        colors_correct = all_inputs[correct_sample] * 0 + [0., 255., 0.]
-        crit_pts_correct = np.unique(all_crit_pts[correct_sample])
-        colors_correct[crit_pts_correct, :] = [0., 0., 255.]
-        mesh_update_list.append(
-            {'tag': f'{dataloader.dataset.get_nsides_from_labels(all_labels[correct_sample])} Faces/train correct',
-             'vertices': all_inputs[correct_sample][None, :],
-             'colors': colors_correct[None, :],
-             'global_step': step + batch + 1,
-             'config_dict': {"camera": camera_config}})
-
-        colors_incorrect = all_inputs[incorrect_sample] * 0 + [255., 0., 0.]
-        crit_pts_incorrect = np.unique(all_crit_pts[incorrect_sample])
-        colors_incorrect[crit_pts_incorrect, :] = [0., 0., 255.]
-        mesh_update_list.append(
-            {'tag': f'{dataloader.dataset.get_nsides_from_labels(all_labels[correct_sample])} Faces/train incorrect',
-             'vertices': all_inputs[incorrect_sample][None, :],
-             'colors': colors_incorrect[None, :],
-             'global_step': step + batch + 1,
-             'config_dict': {"camera": camera_config}})
-
-        tensorboard_vis.update_writer({'mesh': mesh_update_list})
-
-        # tensorboard_vis.add_mesh("Good", vertices=)
+        tensorboard_vis.update_writer(
+            {'figure': figure_update_list,
+             'mesh': mesh_update_list})
 
     return (total_loss/len(dataloader),
             total_correct/len(dataloader.dataset),
@@ -151,9 +164,8 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
 
 def test_loop(dataloader, train_dataset, model, lossfn, device,
               tensorboard_vis=None, step=0):
+    ''' testing '''
 
-    total_loss, total_correct = 0, 0
-    all_inputs, all_preds, all_labels, all_crit_pts = [], [], [], []
     with torch.no_grad():
         for X, y in dataloader:
 
@@ -163,50 +175,50 @@ def test_loop(dataloader, train_dataset, model, lossfn, device,
             # predictions
             outputs, crit_pt_inds, m3x3, m64x64 = model(inputs.transpose(1, 2))
             predictions = outputs.argmax(1)
+            correct = (predictions == labels)
 
             # loss and accuracy
-            total_loss += lossfn(outputs, labels, m3x3, m64x64).item()
-            total_correct += (predictions ==
-                              labels).type(torch.float).sum().item()
+            total_loss = lossfn(outputs, labels, m3x3, m64x64).item()
+            total_correct = correct.type(
+                torch.float).sum().item()/len(dataloader.dataset)
 
-            # append
-            if device.type == 'cpu':
-                all_inputs.append(inputs.numpy())
-                all_preds.extend(predictions.tolist())
-                all_labels.extend(labels.tolist())
-                all_crit_pts.extend(crit_pt_inds.numpy())
-            else:
-                all_inputs.append(inputs.cpu().numpy())
-                all_preds.extend(predictions.cpu().tolist())
-                all_labels.extend(labels.cpu().tolist())
-                all_crit_pts.extend(crit_pt_inds.cpu().numpy())
-
-    total_loss /= len(dataloader)
-    total_correct /= len(dataloader.dataset)
     print(
         f"Test Error:  Accuracy: {(100*total_correct):>0.1f}%, Avg loss: {total_loss:>8f} \n")
 
     if tensorboard_vis:
-        # build tensorboard update
+        # build tensorboard update for scalar
         scalar_update_list = build_tensorboard_scalars(
             tags=['Loss/test per step', 'Accuracy/test per step'],
             scalars=[total_loss, total_correct],
             steps=[step, step])
 
+        # build tensorboard update for confusion matrix
         figure_update_list = [{
             'tag': 'Confusion Matrix/test per step',
             'figure': visualization.plot_confusion_matrix(
-                dataset=train_dataset, preds=all_preds,
-                true_vals=all_labels),
+                dataset=train_dataset, preds=predictions.tolist(),
+                true_vals=labels.tolist()),
             'global_step': step
         }]
 
+        # build tensorboard mesh
+        correct_sample, incorrect_sample = select_mesh_samples_to_plot(
+            correct=correct)
+
+        tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[correct_sample])} Faces/"
+
+        mesh_update_list = build_tensorboard_meshes(
+            tags=[tag_prefix + "correct", tag_prefix + "incorrect"],
+            xyzs=[inputs[correct_sample, :, :],
+                  inputs[incorrect_sample, :, :]],
+            crit_pt_inds=[crit_pt_inds[correct_sample, :, :],
+                          crit_pt_inds[incorrect_sample, :, :]],
+            colors=[[0., 255., 0, ], [255, 0., 0.]],
+            global_steps=[step, step])
+
         # update tensorboard
         tensorboard_vis.update_writer({'scalar': scalar_update_list,
-                                       'figure': figure_update_list})
+                                       'figure': figure_update_list,
+                                       'mesh': mesh_update_list})
 
-    return (total_loss,
-            total_correct,
-            np.concatenate(all_inputs, axis=0),
-            all_preds,
-            all_labels)
+    return total_loss, total_correct, inputs, predictions, labels

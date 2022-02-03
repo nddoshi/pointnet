@@ -47,7 +47,7 @@ if __name__ == '__main__':
         pc_type=args.point_cloud_type,
         data_dir=os.path.join(args.dataset_dir, 'test'),
         transform=polyhedron_utils.default_transforms())
-    valid_loader = DataLoader(dataset=valid_ds, batch_size=args.batch_size,
+    valid_loader = DataLoader(dataset=valid_ds, batch_size=len(valid_ds),
                               shuffle=True)
 
     # print dateset info
@@ -107,5 +107,6 @@ if __name__ == '__main__':
                        'test_accuracy': test_accuracy}
             )
 
-    tensorboard_vis.close_writer()
+    if tensorboard_vis:
+        tensorboard_vis.close_writer()
     print("Done!")

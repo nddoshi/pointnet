@@ -107,7 +107,7 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
         if (batch == rand_batch) and tensorboard_vis:
 
             mesh_update_list = []
-            if len(correct.nonzero()) > 0:
+            if len(correct.nonzero()) > 1: # HACK
                 correct_sample = random_index_from_mask(mask=correct)
                 tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[correct_sample])} Faces/"
 
@@ -118,8 +118,8 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
                     colors=[[0., 255., 0, ]],
                     global_steps=[step],
                     device=device))
-
-            if len((~correct.nonzero())) > 0:
+            
+            if len((~correct).nonzero()) > 1: #HACK
                 incorrect_sample = random_index_from_mask(mask=~correct)
                 tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[incorrect_sample])} Faces/"
 
@@ -211,7 +211,7 @@ def test_loop(dataloader, train_dataset, model, lossfn, device,
 
         # build tensorboard mesh
         mesh_update_list = []
-        if len(correct.nonzero()) > 0:
+        if len(correct.nonzero()) > 1: # HACK
             correct_sample = random_index_from_mask(mask=correct)
             tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[correct_sample])} Faces/"
 
@@ -223,7 +223,7 @@ def test_loop(dataloader, train_dataset, model, lossfn, device,
                 global_steps=[step],
                 device=device))
 
-        if len((~correct.nonzero())) > 0:
+        if len((~correct).nonzero()) > 1: # HACK
             incorrect_sample = random_index_from_mask(mask=~correct)
             tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[incorrect_sample])} Faces/"
 

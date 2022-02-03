@@ -63,7 +63,7 @@ def build_tensorboard_meshes(tags, xyzs, crit_pt_inds, colors, global_steps,
             tags, xyzs, crit_pt_inds, colors, global_steps):
 
         pt_colors = xyz * 0 + torch.tensor(color, device=device)
-        crit_pts = np.unique(crit_pt_ind)
+        crit_pts = torch.unique(crit_pt_ind)
         pt_colors[crit_pts, :] = torch.tensor([0.] * 3, device=device)
         mesh_updates.append(
             {'tag':  tag, 'vertices': xyz[None, :], 'colors': pt_colors[None, :],

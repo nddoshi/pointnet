@@ -51,7 +51,8 @@ def build_tensorboard_scalars(tags, scalars, steps):
     return scalar_updates
 
 
-def build_tensorboard_meshes(tags, xyzs, crit_pt_inds, colors, global_steps):
+def build_tensorboard_meshes(tags, xyzs, crit_pt_inds, colors, global_steps,
+                             device):
     ''' build tensorboard mesh updates'''
 
     assert len(tags) == len(xyzs) == len(
@@ -61,9 +62,9 @@ def build_tensorboard_meshes(tags, xyzs, crit_pt_inds, colors, global_steps):
     for tag, xyz, crit_pt_ind, color, global_step in zip(
             tags, xyzs, crit_pt_inds, colors, global_steps):
 
-        pt_colors = xyz * 0 + torch.tensor(color)
+        pt_colors = xyz * 0 + torch.tensor(color, device=device)
         crit_pts = np.unique(crit_pt_ind)
-        pt_colors[crit_pts, :] = torch.tensor([0.] * 3)
+        pt_colors[crit_pts, :] = torch.tensor([0.] * 3, device=device)
         mesh_updates.append(
             {'tag':  tag, 'vertices': xyz[None, :], 'colors': pt_colors[None, :],
              'global_step': global_step})
@@ -123,7 +124,8 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
                 crit_pt_inds=[crit_pt_inds[correct_sample, :, :],
                               crit_pt_inds[incorrect_sample, :, :]],
                 colors=[[0., 255., 0, ], [255, 0., 0.]],
-                global_steps=[step + batch + 1, step + batch + 1])
+                global_steps=[step + batch + 1, step + batch + 1],
+                device=device)
 
         # print batch statistics
         loss = loss.item()
@@ -216,7 +218,8 @@ def test_loop(dataloader, train_dataset, model, lossfn, device,
             crit_pt_inds=[crit_pt_inds[correct_sample, :, :],
                           crit_pt_inds[incorrect_sample, :, :]],
             colors=[[0., 255., 0, ], [255, 0., 0.]],
-            global_steps=[step, step])
+            global_steps=[step, step],
+            device=device)
 
         # update tensorboard
         tensorboard_vis.update_writer({'scalar': scalar_update_list,

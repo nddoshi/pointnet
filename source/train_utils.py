@@ -75,7 +75,7 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
     all_preds, all_labels = [-1] * num_samples, [-1] * num_samples
 
     # random sampling for plotting
-    rand_batch = np.random.randint(0, len(dataloader) - 1)
+    rand_batch = np.random.randint(0, len(dataloader))
 
     for batch, (X, y) in enumerate(dataloader):
 

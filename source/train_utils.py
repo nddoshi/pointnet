@@ -21,20 +21,14 @@ def pointnetloss(outputs, labels, m3x3, m64x64, alpha=0.0001):
         torch.norm(diff3x3)+torch.norm(diff64x64)) / float(batch_size)
 
 
-def select_mesh_samples_to_plot(correct):
-    ''' sample one correctly predict and one incorrectly predicted mesh to plot'''
+def random_index_from_mask(mask):
+    ''' select one index from mask'''
 
-    # construct index of correct/incorrectly predicted training data
-    ind_correct = (correct == True).nonzero().squeeze()
-    ind_incorrect = (correct == False).nonzero().squeeze()
+    # construct index where mask is True
+    true_indices = mask.nonzero().squeeze()
 
-    # sample one of each
-    correct_sample = ind_correct[np.random.randint(
-        low=0, high=len(ind_correct))]
-    incorrect_sample = ind_incorrect[np.random.randint(
-        low=0, high=len(ind_incorrect))]
-
-    return correct_sample, incorrect_sample
+    # sample randomly from true indices
+    return true_indices[np.random.randint(low=0, high=len(true_indices))]
 
 
 def build_tensorboard_scalars(tags, scalars, steps):
@@ -52,7 +46,7 @@ def build_tensorboard_scalars(tags, scalars, steps):
 
 
 def build_tensorboard_meshes(tags, xyzs, crit_pt_inds, colors, global_steps,
-                             device):
+                             device, options='all_pts'):
     ''' build tensorboard mesh updates'''
 
     assert len(tags) == len(xyzs) == len(
@@ -112,20 +106,30 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
         # randomly sample correct/incorrect examples for point cloud viz
         if (batch == rand_batch) and tensorboard_vis:
 
-            correct_sample, incorrect_sample = select_mesh_samples_to_plot(
-                correct=correct)
+            mesh_update_list = []
+            if len(correct.nonzero()) > 0:
+                correct_sample = random_index_from_mask(mask=correct)
+                tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[correct_sample])} Faces/"
 
-            # build tensorboard mesh
-            tag_prefix = f"Train, {dataloader.dataset.get_nsides_from_labels(all_labels[correct_sample])} Faces/"
-            mesh_update_list = build_tensorboard_meshes(
-                tags=[tag_prefix + "correct", tag_prefix + "incorrect"],
-                xyzs=[inputs[correct_sample, :, :],
-                      inputs[incorrect_sample, :, :]],
-                crit_pt_inds=[crit_pt_inds[correct_sample, :, :],
-                              crit_pt_inds[incorrect_sample, :, :]],
-                colors=[[0., 255., 0, ], [255, 0., 0.]],
-                global_steps=[step + batch + 1, step + batch + 1],
-                device=device)
+                mesh_update_list.extend(build_tensorboard_meshes(
+                    tags=[tag_prefix + "correct"],
+                    xyzs=[inputs[correct_sample, :, :]],
+                    crit_pt_inds=[crit_pt_inds[correct_sample, :, :]],
+                    colors=[[0., 255., 0, ]],
+                    global_steps=[step],
+                    device=device))
+
+            if len((~correct.nonzero())) > 0:
+                incorrect_sample = random_index_from_mask(mask=~correct)
+                tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[incorrect_sample])} Faces/"
+
+                mesh_update_list.extend(build_tensorboard_meshes(
+                    tags=[tag_prefix + "incorrect"],
+                    xyzs=[inputs[incorrect_sample, :, :]],
+                    crit_pt_inds=[crit_pt_inds[incorrect_sample, :, :]],
+                    colors=[[255, 0., 0.]],
+                    global_steps=[step],
+                    device=device))
 
         # print batch statistics
         loss = loss.item()
@@ -206,20 +210,30 @@ def test_loop(dataloader, train_dataset, model, lossfn, device,
         }]
 
         # build tensorboard mesh
-        correct_sample, incorrect_sample = select_mesh_samples_to_plot(
-            correct=correct)
+        mesh_update_list = []
+        if len(correct.nonzero()) > 0:
+            correct_sample = random_index_from_mask(mask=correct)
+            tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[correct_sample])} Faces/"
 
-        tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[correct_sample])} Faces/"
+            mesh_update_list.extend(build_tensorboard_meshes(
+                tags=[tag_prefix + "correct"],
+                xyzs=[inputs[correct_sample, :, :]],
+                crit_pt_inds=[crit_pt_inds[correct_sample, :, :]],
+                colors=[[0., 255., 0, ]],
+                global_steps=[step],
+                device=device))
 
-        mesh_update_list = build_tensorboard_meshes(
-            tags=[tag_prefix + "correct", tag_prefix + "incorrect"],
-            xyzs=[inputs[correct_sample, :, :],
-                  inputs[incorrect_sample, :, :]],
-            crit_pt_inds=[crit_pt_inds[correct_sample, :, :],
-                          crit_pt_inds[incorrect_sample, :, :]],
-            colors=[[0., 255., 0, ], [255, 0., 0.]],
-            global_steps=[step, step],
-            device=device)
+        if len((~correct.nonzero())) > 0:
+            incorrect_sample = random_index_from_mask(mask=~correct)
+            tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[incorrect_sample])} Faces/"
+
+            mesh_update_list.extend(build_tensorboard_meshes(
+                tags=[tag_prefix + "incorrect"],
+                xyzs=[inputs[incorrect_sample, :, :]],
+                crit_pt_inds=[crit_pt_inds[incorrect_sample, :, :]],
+                colors=[[255, 0., 0.]],
+                global_steps=[step],
+                device=device))
 
         # update tensorboard
         tensorboard_vis.update_writer({'scalar': scalar_update_list,

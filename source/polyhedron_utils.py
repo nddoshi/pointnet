@@ -10,7 +10,6 @@ from torchvision import transforms
 def default_transforms():
     return transforms.Compose([
         Normalize(),
-        ToTensor()
     ])
 
 
@@ -19,7 +18,6 @@ def train_transforms(noise_scale=0.02):
         Normalize(),
         RandRotation_z(),
         RandomNoise(scale=noise_scale),
-        ToTensor()
     ])
 
 
@@ -28,7 +26,6 @@ def train_transforms_3DRot(noise_scale=0.02):
         Normalize(),
         RandRotation_S03(),
         RandomNoise(scale=noise_scale),
-        ToTensor()
     ])
 
 
@@ -62,25 +59,6 @@ class RandRotation_S03(object):
         assert len(pointcloud.shape) == 2
 
         R = scp.spatial.transform.Rotation.random().as_matrix()
-
-        # x1 = np.random.uniform(low=0, high=1.)
-        # x2 = np.random.uniform(low=0, high=1.)
-        # x3 = np.random.uniform(low=0, high=1.)
-
-        # R = np.identity(3)
-        # R[0, 0] = R[1, 1] = np.cos(2 * np.pi * x1)
-        # R[0, 1] = -np.sin(2 * np.pi * x1)
-        # R[1, 1] = np.sin(2 * np.pi * x1)
-
-        # v = np.array([
-        #     np.cos(2 * np.pi * x2) * np.sqrt(x3),
-        #     np.sin(2 * np.pi * x2) * np.sqrt(x3),
-        #     np.sqrt(1 - x3)
-        # ])
-
-        # H = np.identity(3) - 2 * np.outer(v, v)
-        # M = -np.matmul(H, R)
-
         return R.dot(pointcloud.T).T
 
 
@@ -95,10 +73,3 @@ class RandomNoise(object):
 
         noisy_pointcloud = pointcloud + noise
         return noisy_pointcloud
-
-
-class ToTensor(object):
-    def __call__(self, pointcloud):
-        assert len(pointcloud.shape) == 2
-
-        return torch.from_numpy(pointcloud)

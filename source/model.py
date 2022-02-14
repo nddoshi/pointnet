@@ -5,6 +5,7 @@ import torch.nn as nn
 
 def conv(input_dim, output_dim):
     ''' conv1d --> bathnorm --> ReLU'''
+
     return nn.Sequential(
         nn.Conv1d(in_channels=input_dim,
                   out_channels=output_dim, kernel_size=1),
@@ -15,6 +16,7 @@ def conv(input_dim, output_dim):
 
 def fully_connected(input_dim, output_dim):
     ''' mlp --> bathnorm --> ReLU'''
+
     return nn.Sequential(
         nn.Linear(in_features=input_dim, out_features=output_dim),
         nn.BatchNorm1d(num_features=output_dim),
@@ -39,7 +41,7 @@ class Tnet(nn.Module):
         self.fc3 = nn.Linear(in_features=256, out_features=self.k*self.k)
 
     def forward(self, input):
-        # input.shape == (bs, n, 3)
+
         batch_size = input.size(0)
 
         xb1 = self.conv1(input)

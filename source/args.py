@@ -1,5 +1,5 @@
-import sys
 import argparse
+import sys
 
 
 def parse_train_args():
@@ -30,8 +30,8 @@ def parse_train_args():
                         help='scale for random noise to add')
 
     # settings related to saving stuff
-    parser.add_argument('--save_flag', default=False, type=bool,
-                        help='save experiment if true')
+    parser.add_argument('--save_flag', dest='save_flag', default=False,
+                        action='store_true', help="save if true")
     parser.add_argument('--save_freq', default=5, type=int,
                         help='freq of saving checkpoints (in epochs)')
     parser.add_argument('--tb_log_dir', default='../experiments/tensorboard-logs/', type=str,

@@ -40,7 +40,8 @@ if __name__ == '__main__':
         transform=polyhedron_utils.train_transforms_3DRot(
             noise_scale=args.noise_scale))
     train_loader = DataLoader(
-        dataset=train_ds, batch_size=args.batch_size, shuffle=True)
+        dataset=train_ds, batch_size=args.batch_size,
+        collate_fn=train_ds.collate_fn, shuffle=True)
 
     # testing dataset
     valid_ds = polyhedron_dataset.PolyhedronDataSet(
@@ -48,7 +49,7 @@ if __name__ == '__main__':
         data_dir=os.path.join(args.dataset_dir, 'test'),
         transform=polyhedron_utils.default_transforms())
     valid_loader = DataLoader(dataset=valid_ds, batch_size=len(valid_ds),
-                              shuffle=True)
+                              collate_fn=valid_ds.collate_fn, shuffle=True)
 
     # print dateset info
     num_classes = len(np.unique(np.array(train_ds.labels)))
@@ -72,7 +73,7 @@ if __name__ == '__main__':
 
     # tensorboard visualization
     if args.save_flag:
-        tensorboard_vis = TensorBoardVis(log_dir=tb_save_dir)
+        tensorboard_vis = TensorBoardVis(log_dir=tb_save_dir, device=device)
     else:
         tensorboard_vis = None
 

@@ -1,6 +1,5 @@
-import datetime
+import copy
 import matplotlib.pyplot as plt
-import ipdb
 import numpy as np
 import os
 import pandas as pd
@@ -11,6 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 def plot_confusion_matrix(dataset, preds, true_vals):
+    ''' plot confusion matrix with true on the rows and preds on the columns '''
 
     # classes
     pred_sides = [dataset.label_dict[pred] for pred in preds]
@@ -32,14 +32,82 @@ def plot_confusion_matrix(dataset, preds, true_vals):
     return sn.heatmap(df_cm, annot=True, cmap='Greens').get_figure()
 
 
+def build_tensorboard_scalars(tags, scalars, steps):
+    ''' build scalars for tensorboard'''
+
+    assert len(tags) == len(scalars) == len(steps)
+
+    scalar_updates = []
+    for tag, scalar, step in zip(tags, scalars, steps):
+        scalar_updates.append({
+            'tag': tag, 'scalar_value': scalar, 'global_step': step
+        })
+
+    return scalar_updates
+
+
+def build_tensorboard_meshes(tag, xyz, face, vertices, crit_pt_ind, color,
+                             global_step, options={'all_pts': False, 'mesh': True}):
+    ''' build tensorboard mesh updates'''
+
+    mesh_updates = []
+
+    # make critical pt mask
+    crit_pts_inds_unique = np.unique(crit_pt_ind)
+    crit_pts_mask = np.full(xyz.shape[0], False, dtype=bool)
+    crit_pts_mask[crit_pts_inds_unique] = True
+
+    # colors for plotting only critical points
+    colors = np.array([[255, 255, 255]] * xyz.shape[0])
+    colors[crit_pts_inds_unique, :] = np.array(
+        [[0, 0, 255]] * crit_pts_inds_unique.shape[0])
+
+    # always plot critical points
+    point_update = {'tag': tag,
+                    'vertices': xyz,
+                    'colors': colors,
+                    'global_step': global_step + 1}
+
+    if options['all_pts']:  # add all points
+
+        # update colors for plotting all points
+        colors[~crit_pts_mask] = np.array(
+            [color] * (xyz.shape[0] - crit_pts_inds_unique.shape[0]))
+
+        point_update = {'tag':  tag,
+                        'vertices': xyz,
+                        'colors': colors,
+                        'global_step': global_step + 1}
+
+    if options['mesh']:  # add mesh
+
+        mesh_update = {'tag': tag,
+                       'vertices': xyz,
+                       'faces': face,
+                       'colors': 200 * np.ones(shape=vertices.shape, dtype=int),
+                       'global_step': global_step}
+
+        mesh_updates.append(mesh_update)
+
+    mesh_updates.append(point_update)
+
+    return mesh_updates
+
+
 class TensorBoardVis(object):
-    def __init__(self, log_dir):
+    def __init__(self, log_dir, device):
 
         self.exp_path = log_dir
+        self.device = device
         if not (os.path.isdir(self.exp_path)):
             print(f"Making tensorboard log dir {self.exp_path}")
             os.mkdir(self.exp_path)
         self.writer = SummaryWriter(self.exp_path)
+        self.camera_config = {
+            'cls': 'PerspectiveCamera',
+            'fov': 75,
+            'aspect': 0.9,
+        }
 
     def update_writer(self, update):
         ''' update the summary writer'''
@@ -48,16 +116,38 @@ class TensorBoardVis(object):
         if 'scalar' in update:
             for scalar in update['scalar']:
                 self.writer.add_scalar(**scalar)
-
+        # update all figures
         if 'figure' in update:
             for figure in update['figure']:
                 self.writer.add_figure(**figure)
-
+        # update all meshes
         if 'mesh' in update:
             for mesh in update['mesh']:
-                self.writer.add_mesh(**mesh)
+                self.writer.add_mesh(
+                    **self.mesh_update_to_tensor(mesh_update=mesh),
+                    config_dict=self.camera_config)
 
         self.writer.flush()
+
+    def mesh_update_to_tensor(self, mesh_update):
+
+        mesh_update_tensor = copy.deepcopy(mesh_update)
+
+        mesh_update_tensor['vertices'] = torch.as_tensor(
+            mesh_update['vertices'], dtype=torch.float,
+            device=self.device).unsqueeze(0)
+        mesh_update_tensor['colors'] = torch.as_tensor(
+            mesh_update['colors'], dtype=torch.int,
+            device=self.device).unsqueeze(0)
+
+        try:
+            mesh_update_tensor['faces'] = torch.as_tensor(
+                mesh_update['faces'], dtype=torch.int,
+                device=self.device).unsqueeze(0)
+        except KeyError:
+            pass
+
+        return mesh_update_tensor
 
     def close_writer(self):
         ''' close the summary writer'''

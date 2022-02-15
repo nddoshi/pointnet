@@ -53,16 +53,6 @@ def build_tensorboard_meshes(tag, xyz, face, vertices, crit_pt_ind, color,
 
     mesh_updates = []
 
-    if options['mesh']:  # add mesh
-
-        mesh_update = {'tag': tag,
-                       'vertices': vertices,
-                       'faces': face,
-                       'colors': 200 * np.ones(shape=vertices.shape, dtype=int),
-                       'global_step': global_step + 1}
-
-        mesh_updates.append(mesh_update)
-
     # make critical pt mask
     crit_pts_inds_unique = np.unique(crit_pt_ind)
     crit_pts_mask = np.full(xyz.shape[0], False, dtype=bool)
@@ -71,7 +61,7 @@ def build_tensorboard_meshes(tag, xyz, face, vertices, crit_pt_ind, color,
     # colors for plotting only critical points
     colors = np.array([[255, 255, 255]] * xyz.shape[0])
     colors[crit_pts_inds_unique, :] = np.array(
-        [[0, 0, 255]] * crit_pts_inds_unique.shape[0])
+        [color] * crit_pts_inds_unique.shape[0])
 
     # always plot critical points
     point_update = {'tag': tag,
@@ -83,15 +73,28 @@ def build_tensorboard_meshes(tag, xyz, face, vertices, crit_pt_ind, color,
 
         # update colors for plotting all points
         colors[~crit_pts_mask] = np.array(
-            [color] * (xyz.shape[0] - crit_pts_inds_unique.shape[0]))
+            [[200, 200, 200]] * (xyz.shape[0] - crit_pts_inds_unique.shape[0]))
 
         point_update = {'tag':  tag,
                         'vertices': xyz,
                         'colors': colors,
                         'global_step': global_step}
 
-    mesh_updates.append(point_update)
+    if options['mesh']:  # add mesh
 
+        point_update['vertices'] = np.vstack([vertices, xyz])
+        point_update['colors'] = np.vstack(
+            [np.array([[0, 0, 255]] * vertices.shape[0]), colors])
+
+        mesh_update = {'tag': tag,
+                       'vertices': vertices,
+                       'faces': face,
+                       'colors': 200 * np.ones(shape=vertices.shape),
+                       'global_step': global_step + 1}
+
+        mesh_updates.append(mesh_update)
+
+    mesh_updates.append(point_update)
     return mesh_updates
 
 

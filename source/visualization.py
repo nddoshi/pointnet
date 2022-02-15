@@ -1,4 +1,5 @@
 import copy
+import ipdb
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -52,6 +53,16 @@ def build_tensorboard_meshes(tag, xyz, face, vertices, crit_pt_ind, color,
 
     mesh_updates = []
 
+    if options['mesh']:  # add mesh
+
+        mesh_update = {'tag': tag,
+                       'vertices': vertices,
+                       'faces': face,
+                       'colors': 200 * np.ones(shape=vertices.shape, dtype=int),
+                       'global_step': global_step + 1}
+
+        mesh_updates.append(mesh_update)
+
     # make critical pt mask
     crit_pts_inds_unique = np.unique(crit_pt_ind)
     crit_pts_mask = np.full(xyz.shape[0], False, dtype=bool)
@@ -66,7 +77,7 @@ def build_tensorboard_meshes(tag, xyz, face, vertices, crit_pt_ind, color,
     point_update = {'tag': tag,
                     'vertices': xyz,
                     'colors': colors,
-                    'global_step': global_step + 1}
+                    'global_step': global_step}
 
     if options['all_pts']:  # add all points
 
@@ -77,17 +88,7 @@ def build_tensorboard_meshes(tag, xyz, face, vertices, crit_pt_ind, color,
         point_update = {'tag':  tag,
                         'vertices': xyz,
                         'colors': colors,
-                        'global_step': global_step + 1}
-
-    if options['mesh']:  # add mesh
-
-        mesh_update = {'tag': tag,
-                       'vertices': xyz,
-                       'faces': face,
-                       'colors': 200 * np.ones(shape=vertices.shape, dtype=int),
-                       'global_step': global_step}
-
-        mesh_updates.append(mesh_update)
+                        'global_step': global_step}
 
     mesh_updates.append(point_update)
 

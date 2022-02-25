@@ -12,11 +12,12 @@ import source.polyhedron_utils as pu
 
 class PolyhedronDataSet(Dataset):
 
-    def __init__(self, pc_type, data_dir, transform=None):
+    def __init__(self, pc_type, data_dir, transform=None, noise_scale=None):
         ''' initialize polyhedron dataset'''
 
         self.data_dir = data_dir
         self.transform = transform
+        self.noise_scale = noise_scale
 
         self.data = []
         self.vertices = []
@@ -84,19 +85,18 @@ class PolyhedronDataSet(Dataset):
         label = self.labels[idx]
         vertices = self.vertices[idx]
         faces = self.faces[idx]
+        T = None
 
         if self.transform:
-            n_pts = pointcloud.shape[0]
+            pointcloud, T, t = self.transform(pointcloud=pointcloud)
+            vertices = np.dot(T, vertices.T).T + t
 
-            # stack up points to transform with same transformation
-            pts = np.vstack([pointcloud, vertices])
-            transformed_pts = self.transform(pts)
+        if self.noise_scale:
+            pointcloud = pu.gaussian_noise(pointcloud=pointcloud,
+                                           scale=self.noise_scale)
 
-            # unstack
-            pointcloud = transformed_pts[:n_pts, :]
-            vertices = transformed_pts[n_pts:, :]
-
-        return {'pc': pointcloud, 'vrts': vertices, 'fcs': faces, 'lbl': label}
+        return {'pc': pointcloud, 'vrts': vertices, 'fcs': faces, 'lbl': label,
+                'T': [T, t], 'pc_path': self.data[idx]}
 
     def collate_fn(self, batch):
         ''' collate function for this dataset '''
@@ -104,7 +104,9 @@ class PolyhedronDataSet(Dataset):
             'pc': np.stack([sample['pc'] for sample in batch], axis=0),
             'lbl': np.array([sample['lbl'] for sample in batch]),
             'vrts': [sample['vrts'] for sample in batch],
-            'fcs': [sample['fcs'] for sample in batch]
+            'fcs': [sample['fcs'] for sample in batch],
+            'T': [sample['T'] for sample in batch],
+            'pc_path':  [sample['pc_path'] for sample in batch]
         }
 
     def get_nsides_from_labels(self, labels):
@@ -129,7 +131,7 @@ class PolyhedronDataSet(Dataset):
 
         return data
 
-    def pointcloud_scatter(self, pointcloud, color):
+    def pointcloud_scatter(self, pointcloud, color, size=1):
         ''' plot a point cloud'''
 
         # pointclouds = pointclouds.numpy()
@@ -138,7 +140,7 @@ class PolyhedronDataSet(Dataset):
                              y=pointcloud[:, 1],
                              z=pointcloud[:, 2],
                              mode='markers',
-                             marker_size=1,
+                             marker_size=size,
                              marker_symbol='circle',
                              marker_color=color)
         return data

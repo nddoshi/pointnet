@@ -37,8 +37,9 @@ if __name__ == '__main__':
     train_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args.point_cloud_type,
         data_dir=os.path.join(args.dataset_dir, 'train'),
-        transform=polyhedron_utils.train_transforms_3DRot(
-            noise_scale=args.noise_scale))
+        transform=polyhedron_utils.train_transforms_3DRot,
+        noise_scale=0.02)
+
     train_loader = DataLoader(
         dataset=train_ds, batch_size=args.batch_size,
         collate_fn=train_ds.collate_fn, shuffle=True)
@@ -47,9 +48,12 @@ if __name__ == '__main__':
     valid_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args.point_cloud_type,
         data_dir=os.path.join(args.dataset_dir, 'test'),
-        transform=polyhedron_utils.default_transforms())
-    valid_loader = DataLoader(dataset=valid_ds, batch_size=len(valid_ds),
-                              collate_fn=valid_ds.collate_fn, shuffle=True)
+        transform=polyhedron_utils.default_transforms,
+        noise_scale=0.02)
+
+    valid_loader = DataLoader(
+        dataset=valid_ds, batch_size=len(valid_ds),
+        collate_fn=valid_ds.collate_fn, shuffle=True)
 
     # print dateset info
     num_classes = len(np.unique(np.array(train_ds.labels)))
@@ -66,8 +70,9 @@ if __name__ == '__main__':
     lossfn = train_utils.pointnetloss
 
     if args.resume_epoch > 0:
-        checkpoint, _ = save_utils.load_experiment(
+        checkpoint_path, _ = save_utils.load_experiment(
             args=args)
+        checkpoint = torch.load(checkpoint_path, map_location=device)
         pointnet.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['opt_state_dict'])
 
@@ -85,12 +90,13 @@ if __name__ == '__main__':
 
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}\n-------------------------------")
-        train_loss, train_accuracy, step = train_utils.train_loop(
+
+        train_loss, train_accuracy, save_data, step = train_utils.train_loop(
             dataloader=train_loader, model=pointnet, lossfn=lossfn,
             optimizer=optimizer, device=device,
             tensorboard_vis=tensorboard_vis, step=step)
 
-        test_loss, test_accuracy, inputs, preds, outputs = train_utils.test_loop(
+        test_loss, test_accuracy, _, _, _, _ = train_utils.test_loop(
             dataloader=valid_loader, train_dataset=train_ds,
             model=pointnet, lossfn=lossfn, device=device,
             tensorboard_vis=tensorboard_vis, step=step)
@@ -102,6 +108,7 @@ if __name__ == '__main__':
                 epoch=epoch,
                 model=pointnet,
                 optimizer=optimizer,
+                data=data,
                 stats={'train_loss': train_loss,
                        'train_accuracy': train_accuracy,
                        'test_loss': test_loss,

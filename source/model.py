@@ -123,4 +123,4 @@ class PointNet(nn.Module):
         xb2 = self.fc1(xb1)
         xb3 = nn.functional.relu(self.bn(self.dropout(self.fc2(xb2))))
         output = self.fc3(xb3)
-        return self.logsoftmax(output), crit_pt_inds, matrix3x3, matrix64x64
+        return self.logsoftmax(output), xb1, crit_pt_inds, matrix3x3, matrix64x64

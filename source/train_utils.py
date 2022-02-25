@@ -6,6 +6,14 @@ import torch
 from source import visualization
 
 
+def append_to_save_data(save_data, data):
+    ''' append data to save data'''
+    for key in save_data.keys():
+        if key in data:
+            save_data[key].extend(data[key])
+    return save_data
+
+
 def pointnetloss(outputs, labels, m3x3, m64x64, alpha=0.0001):
     ''' loss function '''
 
@@ -39,6 +47,7 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
     num_samples = dataloader.batch_size * len(dataloader)  # total samples
     total_loss, total_correct = 0, 0
     all_preds, all_labels = [-1] * num_samples, [-1] * num_samples
+    save_data = {'pc_path': [], 'vrts': [], 'fcs': [],   'T': []}
 
     # random sampling for plotting
     rand_batch = np.random.randint(0, len(dataloader))
@@ -52,7 +61,8 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
             data['lbl'],  dtype=torch.long, device=device)
 
         # current prediction and loss
-        outputs, crit_pt_inds, m3x3, m64x64 = model(inputs.transpose(1, 2))
+        outputs, features, crit_pt_inds, m3x3, m64x64 = model(
+            inputs.transpose(1, 2))
         crit_pt_inds = crit_pt_inds.detach().cpu().numpy()
         predicted_labels = outputs.argmax(1)
         loss = lossfn(outputs, labels, m3x3, m64x64)
@@ -72,6 +82,8 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
         else:
             all_labels[batch * dataloader.batch_size: (
                 batch+1) * dataloader.batch_size] = labels.cpu().tolist()
+
+        save_data = append_to_save_data(save_data=save_data, data=data)
 
         # randomly sample correct/incorrect examples for point cloud viz
         if (batch == rand_batch) and tensorboard_vis:
@@ -139,6 +151,7 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
 
     return (total_loss/len(dataloader),
             total_correct/len(dataloader.dataset),
+            save_data,
             step + batch + 1)
 
 
@@ -156,7 +169,8 @@ def test_loop(dataloader, train_dataset, model, lossfn, device,
                 data['lbl'],  dtype=torch.long, device=device)
 
             # predictions
-            outputs, crit_pt_inds, m3x3, m64x64 = model(inputs.transpose(1, 2))
+            outputs, features, crit_pt_inds, m3x3, m64x64 = model(
+                inputs.transpose(1, 2))
             crit_pt_inds = crit_pt_inds.detach().cpu().numpy()
             predictions = outputs.argmax(1)
             correct = (predictions == labels).detach().cpu().numpy()
@@ -218,4 +232,9 @@ def test_loop(dataloader, train_dataset, model, lossfn, device,
                                        'figure': figure_update_list,
                                        'mesh': mesh_update_list})
 
-    return total_loss, total_correct, inputs, predictions, labels
+    return (total_loss,
+            total_correct,
+            data,
+            predictions.detach().cpu().numpy(),
+            features.detach().cpu().numpy(),
+            crit_pt_inds)

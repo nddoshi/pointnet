@@ -2,18 +2,20 @@ import ipdb
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import plotly.graph_objects as pgo
+import plotly.subplots as psp
 import random
 import torch
 from torch.utils.data import DataLoader
 
 from source.args import parse_test_args
-from source import model
+from source import analysis
+from source import model_old
 from source import polyhedron_dataset
 from source import polyhedron_utils
 from source import save_utils
 from source import train_utils
 from source import visualization
-
 random.seed = 42
 
 
@@ -26,30 +28,25 @@ if __name__ == "__main__":
     print(f"Using {device} for training")
 
     # load
-    checkpoint, args = save_utils.load_experiment(args=args)
-
-    # load training dataset to get num classes (TODO: fix this HACK)
-    train_ds = polyhedron_dataset.PolyhedronDataSet(
-        pc_type=args['point_cloud_type'],
-        data_dir=os.path.join(args['dataset_dir'], 'train'),
-        transform=polyhedron_utils.default_transforms())
+    checkpoint_path, args_dict = save_utils.load_experiment(args=args)
+    checkpoint = torch.load(checkpoint_path, map_location=device)
 
     # testing dataset
     test_ds = polyhedron_dataset.PolyhedronDataSet(
-        pc_type=args['point_cloud_type'],
-        data_dir=os.path.join(args['dataset_dir'], 'test'),
+        pc_type=args_dict['point_cloud_type'],
+        data_dir=os.path.join(args.dataset_dir, 'test'),
         transform=polyhedron_utils.default_transforms())
+
     test_loader = DataLoader(dataset=test_ds, batch_size=len(test_ds),
-                             shuffle=True)
+                             collate_fn=test_ds.collate_fn, shuffle=True)
 
     # print dateset info
-    # ipdb.set_trace()
-    num_classes = len(np.unique(np.array(train_ds.labels)))
+    num_classes = len(np.unique(np.array(test_ds.labels)))
     print(f'Valid dataset size: {len(test_ds)}')
     print(f'Number of classes: {num_classes}')
 
     # model
-    pointnet = model.PointNet(classes=num_classes)
+    pointnet = model_old.PointNet(classes=num_classes)
     # try:
     pointnet.load_state_dict(checkpoint['model_state_dict'])
     # except RuntimeError:
@@ -59,15 +56,93 @@ if __name__ == "__main__":
 
     step = 0
     print("Testing...")
-    loss, acc, inputs, predictions, labels = train_utils.test_loop(
+    loss, acc, data, predictions, features, crit_pt_inds = train_utils.test_loop(
         dataloader=test_loader,
-        train_dataset=train_ds,
+        train_dataset=test_ds,
         model=pointnet,
         lossfn=train_utils.pointnetloss,
         device=device)
+    correct = predictions == data['lbl']
 
+    # unique classes
+    unique_labels = np.unique(np.array(data['lbl']))
+    num_labels = unique_labels.shape[0]
+
+    # plot confusion matrix
     cm_fig = visualization.plot_confusion_matrix(
-        dataset=train_ds, preds=predictions, true_vals=labels)
+        dataset=test_ds, preds=predictions, true_vals=data['lbl'])
+
+    # compute knn
+    feature_dist = np.zeros(shape=(features.shape[0], features.shape[0]))
+    knn_ind, knn_label = [], []
+    for i in range(features.shape[0]):
+
+        feature_dist[:, i] = analysis.feature_distance_to_set(
+            feature_set=features, query_feature=features[i, :])
+        knn_ind.append(analysis.knn(
+            feature_distance=feature_dist[:, i], k=4))
+        knn_label.append(data['lbl'][knn_ind[-1]].tolist())
+
+    true_faces = test_ds.get_nsides_from_labels(data['lbl'].tolist())
+    knn_faces = [test_ds.get_nsides_from_labels(nn) for nn in knn_label]
+
+    # plot knn
+    knn_fig = visualization.plot_knn(true_faces=true_faces,
+                                     knn_faces=knn_faces)
+
+    # plot correct/incorrect examples
+    fig = psp.make_subplots(
+        rows=2, cols=num_labels,
+        specs=[[{'type': 'surface'}
+                for _ in range(num_labels)] for _ in range(2)])
+
+    for i, label in enumerate(unique_labels):
+
+        label_mask = data['lbl'] == label
+
+        if True in correct * label_mask:
+
+            # sample a correctly predicted shape
+            correct_ind = train_utils.random_index_from_mask(
+                mask=correct*label_mask)
+
+            # plot critical points
+            crit_pts_inds_unique = np.unique(crit_pt_inds[correct_ind, :, :])
+            scatter = test_ds.pointcloud_scatter(
+                pointcloud=data['pc'][correct_ind][crit_pts_inds_unique, :],
+                color='green', size=2)
+            fig.add_trace(scatter, row=1, col=i+1)
+
+            # plot mesh
+            mesh = test_ds.plot_mesh(vertices=data['vrts'][correct_ind],
+                                     faces=data['fcs'][correct_ind],
+                                     color="gray")
+            fig.add_trace(mesh, row=1, col=i+1)
+
+        if True in (~correct) * label_mask:
+
+            # sample incorrectly predicted shape
+            incorrect_ind = train_utils.random_index_from_mask(
+                mask=(~correct)*label_mask)
+
+            # plot critical points
+            crit_pts_inds_unique = np.unique(crit_pt_inds[incorrect_ind, :, :])
+            scatter = test_ds.pointcloud_scatter(
+                pointcloud=data['pc'][incorrect_ind][crit_pts_inds_unique, :],
+                color='red', size=2)
+            fig.add_trace(scatter, row=2, col=i+1)
+
+            # plot mesh
+            mesh = test_ds.plot_mesh(vertices=data['vrts'][incorrect_ind],
+                                     faces=data['fcs'][incorrect_ind],
+                                     color="gray")
+            fig.add_trace(mesh, row=2, col=i+1)
+
+            print(
+                f"Label {test_ds.get_nsides_from_labels(label)} incorrectly predicted as {test_ds.get_nsides_from_labels(predictions[incorrect_ind])}")
 
     print("Done!")
+    # fig = pgo.Figure(plot_data)
+    fig.show()
+    knn_fig.show()
     plt.show()

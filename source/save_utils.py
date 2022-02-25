@@ -10,16 +10,16 @@ def load_experiment(args):
     ''' load experiment'''
 
     # load args
-    with open(os.path.join(args.load_dir, 'args.txt'), 'r') as f:
+    fname = os.path.join(args.load_dir, args.exp_name)
+    with open(os.path.join(fname, 'args.txt'), 'r') as f:
         args_dict = json.load(f)
 
     # load model from last epoch
     resume_epoch = 0
     if args.resume_epoch == -1:
-        checkpoints = [chkpt for chkpt in os.listdir(args.load_dir)
+        checkpoints = [chkpt for chkpt in os.listdir(fname)
                        if '.pth' in chkpt]
         for chkpt in checkpoints:
-            print(chkpt)
             checkpoint_epoch = int((os.path.splitext(chkpt)[0]).split('_')[1])
             if checkpoint_epoch > resume_epoch:
                 resume_epoch = checkpoint_epoch
@@ -27,11 +27,10 @@ def load_experiment(args):
         args.resume_epoch = resume_epoch
 
     checkpoint_path = os.path.join(
-        args.load_dir, 'model_%d.pth' % args.resume_epoch)
+        fname, 'model_%d.pth' % args.resume_epoch)
     print(f"Loading model from {checkpoint_path}")
-    checkpoint = torch.load(checkpoint_path)
 
-    return checkpoint, args_dict
+    return checkpoint_path, args_dict
 
 
 def save_experiment(args):
@@ -66,11 +65,12 @@ def save_experiment(args):
     return experiment_save_dir, tensorboard_save_dir
 
 
-def save_checkpoint(save_dir, epoch, model, optimizer, stats):
+def save_checkpoint(save_dir, epoch, model, optimizer, data, stats):
 
     stats["epoch"] = epoch
     stats['model_state_dict'] = model.state_dict()
     stats['opt_state_dict'] = optimizer.state_dict()
+    stats['data'] = data
 
     checkpoint_fname = os.path.join(
         save_dir, f"model_{epoch+1}.pth")

@@ -5,9 +5,40 @@ import numpy as np
 import os
 import pandas as pd
 import seaborn as sn
+import plotly.graph_objects as pgo
+import plotly.subplots as psp
 from sklearn.metrics import confusion_matrix
 import torch
 from torch.utils.tensorboard import SummaryWriter
+
+
+def plot_knn(true_faces, knn_faces):
+    ''' plot knn results as stacked bar graphs'''
+
+    unique_true_faces = np.unique(np.array(true_faces))
+    num_labels = unique_true_faces.shape[0]
+
+    knn_face_array = np.array(knn_faces)
+
+    fig = psp.make_subplots(rows=1, cols=num_labels,
+                            subplot_titles=[str(i)+' faces' for i in unique_true_faces])
+
+    colors = ['red', 'green', 'blue', 'gray']
+
+    for i, face in enumerate(unique_true_faces):
+        mask = face == true_faces
+
+        for j, level in enumerate(knn_face_array.T):
+            masked_level = level[mask]
+            x, y = np.unique(masked_level, return_counts=True)
+            fig.add_trace(pgo.Bar(x=x, y=y, name=f"{j}-nn", marker_color=colors[j]),
+                          row=1, col=i+1)
+            # axs[i].set_title(f"{face}-faces")
+
+        fig.update_layout(barmode='stack', xaxis={
+            'categoryorder': 'category ascending'})
+
+    return fig
 
 
 def plot_confusion_matrix(dataset, preds, true_vals):

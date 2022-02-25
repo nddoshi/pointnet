@@ -1,3 +1,4 @@
+from asyncore import compact_traceback
 import ipdb
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,13 +11,29 @@ from torch.utils.data import DataLoader
 
 from source.args import parse_test_args
 from source import analysis
-from source import model_old
+from source import model
 from source import polyhedron_dataset
 from source import polyhedron_utils
 from source import save_utils
 from source import train_utils
 from source import visualization
 random.seed = 42
+
+
+def compute_training_features(pc_path_list, transform_list, model, device):
+
+    inputs = []
+    for pc_path, T in zip(pc_path_list, transform_list):
+        pc = np.load(pc_path)
+        pc = np.dot(T[0], pc.T).T + T[1]
+        inputs.append(pc)
+
+    inputs = np.stack(inputs)
+    with torch.no_grad():
+        inputs = torch.tensor(inputs, dtype=torch.float, device=device)
+        _, features, _, _, _ = model(inputs.transpose(1, 2))
+
+    return features.detach().cpu().numpy()
 
 
 if __name__ == "__main__":
@@ -31,11 +48,13 @@ if __name__ == "__main__":
     checkpoint_path, args_dict = save_utils.load_experiment(args=args)
     checkpoint = torch.load(checkpoint_path, map_location=device)
 
+    ipdb.set_trace()
+
     # testing dataset
     test_ds = polyhedron_dataset.PolyhedronDataSet(
         pc_type=args_dict['point_cloud_type'],
         data_dir=os.path.join(args.dataset_dir, 'test'),
-        transform=polyhedron_utils.default_transforms())
+        transform=polyhedron_utils.default_transforms)
 
     test_loader = DataLoader(dataset=test_ds, batch_size=len(test_ds),
                              collate_fn=test_ds.collate_fn, shuffle=True)
@@ -46,13 +65,23 @@ if __name__ == "__main__":
     print(f'Number of classes: {num_classes}')
 
     # model
-    pointnet = model_old.PointNet(classes=num_classes)
+    pointnet = model.PointNet(classes=num_classes)
+
     # try:
     pointnet.load_state_dict(checkpoint['model_state_dict'])
     # except RuntimeError:
 
     pointnet.to(device)
     pointnet.eval()
+
+    # compute training features and labels
+    train_features = compute_training_features(
+        pc_path_list=checkpoint['data']['pc_path'],
+        transform_list=checkpoint['data']['T'],
+        model=pointnet,
+        device=device)
+    train_labels = np.array(checkpoint['data']['lbl'])
+    #  size = train_features.shape[0])
 
     step = 0
     print("Testing...")
@@ -73,15 +102,16 @@ if __name__ == "__main__":
         dataset=test_ds, preds=predictions, true_vals=data['lbl'])
 
     # compute knn
-    feature_dist = np.zeros(shape=(features.shape[0], features.shape[0]))
+    feature_dist = np.zeros(
+        shape=(train_features.shape[0], features.shape[0],))
     knn_ind, knn_label = [], []
     for i in range(features.shape[0]):
 
         feature_dist[:, i] = analysis.feature_distance_to_set(
-            feature_set=features, query_feature=features[i, :])
+            feature_set=train_features, query_feature=features[i, :])
         knn_ind.append(analysis.knn(
             feature_distance=feature_dist[:, i], k=4))
-        knn_label.append(data['lbl'][knn_ind[-1]].tolist())
+        knn_label.append(train_labels[knn_ind[-1]].tolist())
 
     true_faces = test_ds.get_nsides_from_labels(data['lbl'].tolist())
     knn_faces = [test_ds.get_nsides_from_labels(nn) for nn in knn_label]

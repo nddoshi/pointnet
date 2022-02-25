@@ -108,7 +108,7 @@ if __name__ == '__main__':
                 epoch=epoch,
                 model=pointnet,
                 optimizer=optimizer,
-                data=data,
+                data=save_data,
                 stats={'train_loss': train_loss,
                        'train_accuracy': train_accuracy,
                        'test_loss': test_loss,

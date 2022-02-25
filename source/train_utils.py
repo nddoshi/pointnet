@@ -9,8 +9,8 @@ from source import visualization
 def append_to_save_data(save_data, data):
     ''' append data to save data'''
     for key in save_data.keys():
-        if key in data:
-            save_data[key].extend(data[key])
+        assert key in data
+        save_data[key].extend(data[key])
     return save_data
 
 
@@ -47,7 +47,7 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
     num_samples = dataloader.batch_size * len(dataloader)  # total samples
     total_loss, total_correct = 0, 0
     all_preds, all_labels = [-1] * num_samples, [-1] * num_samples
-    save_data = {'pc_path': [], 'vrts': [], 'fcs': [],   'T': []}
+    save_data = {'pc_path': [], 'vrts': [], 'fcs': [],  'lbl': [],  'T': []}
 
     # random sampling for plotting
     rand_batch = np.random.randint(0, len(dataloader))

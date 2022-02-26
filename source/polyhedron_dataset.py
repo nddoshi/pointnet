@@ -45,8 +45,9 @@ class PolyhedronDataSet(Dataset):
                     self.nfaces.append(polyhedron_info['n_faces'])
 
                     # compute vertices and faces
-                    mesh = trimesh.load_mesh(
-                        file_obj=polyhedron_info['obj_path'])
+                    obj_file_name = polyhedron_info['obj_path'].split('/')[-1]
+                    obj_path = os.path.join(dir_path, obj_file_name)
+                    mesh = trimesh.load_mesh(file_obj=obj_path)
                     trimesh.repair.fix_winding(mesh)
                     self.vertices.append(np.array(mesh.vertices))
                     self.faces.append(np.array(mesh.faces))

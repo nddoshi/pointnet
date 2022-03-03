@@ -9,8 +9,8 @@ from source import visualization
 def append_to_save_data(save_data, data):
     ''' append data to save data'''
     for key in save_data.keys():
-        assert key in data
-        save_data[key].extend(data[key])
+        if key in data:
+            save_data[key].extend(data[key])
     return save_data
 
 
@@ -41,13 +41,14 @@ def random_index_from_mask(mask):
 
 
 def train_loop(dataloader, model, lossfn, optimizer, device,
-               tensorboard_vis=None, step=0):
+               tensorboard_vis=None, step=0, debug=False):
     ''' single epoch of training '''
 
     num_samples = dataloader.batch_size * len(dataloader)  # total samples
     total_loss, total_correct = 0, 0
     all_preds, all_labels = [-1] * num_samples, [-1] * num_samples
-    save_data = {'pc_path': [], 'vrts': [], 'fcs': [],  'lbl': [],  'T': []}
+    save_data = {'pc_path': [], 'vrts': [],
+                 'fcs': [],  'lbl': [], 'z': [], 'T': []}
 
     # random sampling for plotting
     rand_batch = np.random.randint(0, len(dataloader))
@@ -84,9 +85,10 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
                 batch+1) * dataloader.batch_size] = labels.cpu().tolist()
 
         save_data = append_to_save_data(save_data=save_data, data=data)
+        save_data['z'].extend(features.detach().cpu().numpy())
 
         # randomly sample correct/incorrect examples for point cloud viz
-        if (batch == rand_batch) and tensorboard_vis:
+        if (batch == rand_batch) and tensorboard_vis and debug:
 
             mesh_update_list = []
             if True in correct:
@@ -125,18 +127,18 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
         total_loss += loss
         total_correct += accuracy
 
-        # build tensorboard update
-        if tensorboard_vis:
-            scalar_update_list = visualization.build_tensorboard_scalars(
-                tags=['Loss/train per step', 'Accuracy/train per step'],
-                scalars=[loss, accuracy],
-                steps=[step + batch + 1, step + batch + 1])
+    # build tensorboard scalar update once per epoch
+    if tensorboard_vis:
+        scalar_update_list = visualization.build_tensorboard_scalars(
+            tags=['Loss/train per step', 'Accuracy/train per step'],
+            scalars=[loss, accuracy],
+            steps=[step + batch + 1, step + batch + 1])
 
-            tensorboard_vis.update_writer({'scalar': scalar_update_list})
+        tensorboard_vis.update_writer({'scalar': scalar_update_list})
 
     # plot confusion matrix once per epoch
     # plot good/bad prediction meshes once per epoch
-    if tensorboard_vis:
+    if tensorboard_vis and debug:
         figure_update_list = [{
             'tag': 'Confusion Matrix/train per step',
             'figure': visualization.plot_confusion_matrix(

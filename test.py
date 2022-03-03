@@ -1,13 +1,13 @@
-from asyncore import compact_traceback
 import ipdb
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import plotly.graph_objects as pgo
 import plotly.subplots as psp
+import plotly.graph_objects as pgo
 import random
 import torch
 from torch.utils.data import DataLoader
+import trimesh
 
 from source.args import parse_test_args
 from source import analysis
@@ -20,20 +20,24 @@ from source import visualization
 random.seed = 42
 
 
-def compute_training_features(pc_path_list, transform_list, model, device):
+def compute_training_features(pc_path_list, transform_list, model, device,
+                              datadir=None, max_size=1024):
 
     inputs = []
     for pc_path, T in zip(pc_path_list, transform_list):
+        if datadir:
+            pc_path = os.path.join(args.dataset_dir, *pc_path.split("/")[-3:])
         pc = np.load(pc_path)
         pc = np.dot(T[0], pc.T).T + T[1]
         inputs.append(pc)
 
-    inputs = np.stack(inputs)
+    inds = np.random.randint(low=0, high=len(inputs), size=max_size)
+    inputs = np.stack(inputs)[inds, :, :]
     with torch.no_grad():
         inputs = torch.tensor(inputs, dtype=torch.float, device=device)
         _, features, _, _, _ = model(inputs.transpose(1, 2))
 
-    return features.detach().cpu().numpy()
+    return features.detach().cpu().numpy(), inds
 
 
 if __name__ == "__main__":
@@ -47,8 +51,6 @@ if __name__ == "__main__":
     # load
     checkpoint_path, args_dict = save_utils.load_experiment(args=args)
     checkpoint = torch.load(checkpoint_path, map_location=device)
-
-    ipdb.set_trace()
 
     # testing dataset
     test_ds = polyhedron_dataset.PolyhedronDataSet(
@@ -66,22 +68,18 @@ if __name__ == "__main__":
 
     # model
     pointnet = model.PointNet(classes=num_classes)
-
-    # try:
     pointnet.load_state_dict(checkpoint['model_state_dict'])
-    # except RuntimeError:
-
     pointnet.to(device)
     pointnet.eval()
 
     # compute training features and labels
-    train_features = compute_training_features(
+    train_features, data_inds = compute_training_features(
         pc_path_list=checkpoint['data']['pc_path'],
         transform_list=checkpoint['data']['T'],
         model=pointnet,
-        device=device)
-    train_labels = np.array(checkpoint['data']['lbl'])
-    #  size = train_features.shape[0])
+        device=device,
+        datadir=args.dataset_dir)
+    train_labels = np.array(checkpoint['data']['lbl'])[data_inds]
 
     step = 0
     print("Testing...")
@@ -100,6 +98,8 @@ if __name__ == "__main__":
     # plot confusion matrix
     cm_fig = visualization.plot_confusion_matrix(
         dataset=test_ds, preds=predictions, true_vals=data['lbl'])
+    cm_fig.get_axes()[0].set_ylabel('True Values')
+    cm_fig.get_axes()[0].set_xlabel('Predictions')
 
     # compute knn
     feature_dist = np.zeros(
@@ -172,7 +172,13 @@ if __name__ == "__main__":
                 f"Label {test_ds.get_nsides_from_labels(label)} incorrectly predicted as {test_ds.get_nsides_from_labels(predictions[incorrect_ind])}")
 
     print("Done!")
-    # fig = pgo.Figure(plot_data)
+
+    # save figures
+    save_path = os.path.join(args.load_dir, args.exp_name)
+    knn_fig.write_html(os.path.join(save_path, 'knn'))
+    cm_fig.savefig(os.path.join(save_path, 'cm.png'))
+
     fig.show()
     knn_fig.show()
+
     plt.show()

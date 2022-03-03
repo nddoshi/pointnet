@@ -25,9 +25,9 @@ if __name__ == '__main__':
     np.random.seed(args.random_seed)
 
     # setup experiment
+    exp_save_dir, tb_save_dir = save_utils.save_experiment(args=args)
     if args.save_flag:
         print("Saving experiment...")
-        exp_save_dir, tb_save_dir = save_utils.save_experiment(args=args)
 
     # device
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -77,10 +77,7 @@ if __name__ == '__main__':
         optimizer.load_state_dict(checkpoint['opt_state_dict'])
 
     # tensorboard visualization
-    if args.save_flag:
-        tensorboard_vis = TensorBoardVis(log_dir=tb_save_dir, device=device)
-    else:
-        tensorboard_vis = None
+    tensorboard_vis = TensorBoardVis(log_dir=tb_save_dir, device=device)
 
     step = 0
     train_utils.test_loop(
@@ -91,15 +88,19 @@ if __name__ == '__main__':
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1}\n-------------------------------")
 
+        tb_log_flag = ((epoch+1) % args.tb_log_freq == 0)
+
         train_loss, train_accuracy, save_data, step = train_utils.train_loop(
             dataloader=train_loader, model=pointnet, lossfn=lossfn,
             optimizer=optimizer, device=device,
-            tensorboard_vis=tensorboard_vis, step=step)
+            tensorboard_vis=tensorboard_vis if tb_log_flag else None,
+            step=step, debug=args.debug)
 
         test_loss, test_accuracy, _, _, _, _ = train_utils.test_loop(
             dataloader=valid_loader, train_dataset=train_ds,
             model=pointnet, lossfn=lossfn, device=device,
-            tensorboard_vis=tensorboard_vis, step=step)
+            tensorboard_vis=tensorboard_vis if tb_log_flag else None,
+            step=step)
 
         # save the model
         if args.save_flag and ((epoch+1) % args.save_freq == 0):

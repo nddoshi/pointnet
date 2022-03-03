@@ -38,6 +38,10 @@ def parse_train_args():
                         type=str, help='tensorboard log directory')
     parser.add_argument('--save_dir', default='../experiments/', type=str,
                         help='checkpoints dir')
+    parser.add_argument('--tb_log_freq', default=5, type=int,
+                        help='freq of updating tb log (in epochs)')
+    parser.add_argument('--debug', dest='debug', default=False,
+                        action='store_true', help="plot debug info if true")
 
     args = parser.parse_args()
     print(' '.join(sys.argv))

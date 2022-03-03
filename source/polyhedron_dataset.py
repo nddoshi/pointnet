@@ -20,6 +20,7 @@ class PolyhedronDataSet(Dataset):
         self.noise_scale = noise_scale
 
         self.data = []
+        self.obj_paths = []
         self.vertices = []
         self.faces = []
         self.nfaces = []
@@ -49,6 +50,8 @@ class PolyhedronDataSet(Dataset):
                     obj_path = os.path.join(dir_path, obj_file_name)
                     mesh = trimesh.load_mesh(file_obj=obj_path)
                     trimesh.repair.fix_winding(mesh)
+
+                    self.obj_paths.append(obj_path)
                     self.vertices.append(np.array(mesh.vertices))
                     self.faces.append(np.array(mesh.faces))
 
@@ -76,7 +79,6 @@ class PolyhedronDataSet(Dataset):
 
     def __len__(self):
         ''' length of data set'''
-
         return len(self.labels)
 
     def __getitem__(self, idx):

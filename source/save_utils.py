@@ -37,7 +37,7 @@ def save_experiment(args):
     ''' save experiment '''
 
     # current date and time
-    date_string = datetime.datetime.now().strftime("%m-%d-%Y_%H:%M:%S")
+    date_string = datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
 
     experiment_save_dir = os.path.join(
         args.save_dir, f"{args.exp_name}_{date_string}")

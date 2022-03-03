@@ -105,7 +105,7 @@ class Transform(nn.Module):
 class PointNet(nn.Module):
     ''' the pointnet network'''
 
-    def __init__(self, classes=10):
+    def __init__(self, classes=10, p_dropout=0.3):
         super(PointNet, self).__init__()
 
         self.transform = Transform()
@@ -115,12 +115,12 @@ class PointNet(nn.Module):
         self.fc3 = nn.Linear(in_features=256, out_features=classes)
 
         self.bn = nn.BatchNorm1d(num_features=256)
-        self.dropout = nn.Dropout(p=0.3)
+        self.dropout = nn.Dropout(p=p_dropout)
         self.logsoftmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input):
         xb1, crit_pt_inds, matrix3x3, matrix64x64 = self.transform(input)
-        xb2 = self.fc1(xb1)
+        xb2 = self.dropout(self.fc1(xb1))
         xb3 = nn.functional.relu(self.bn(self.dropout(self.fc2(xb2))))
-        output = self.fc3(xb3)
+        output = self.dropout(self.fc3(xb3))
         return self.logsoftmax(output), xb1, crit_pt_inds, matrix3x3, matrix64x64

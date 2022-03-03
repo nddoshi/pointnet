@@ -28,6 +28,10 @@ def parse_train_args():
                         help='number of training epochs')
     parser.add_argument('--noise_scale', default=0.02, type=float,
                         help='scale for random noise to add')
+    parser.add_argument('--weight_decay', default=1e-4, type=float,
+                        help='coefficient in front of L2 norm penalty on weight')
+    parser.add_argument('--p_dropout', default=0.3, type=float,
+                        help='dropout probability for dropout layers')
 
     # settings related to saving stuff
     parser.add_argument('--save_flag', dest='save_flag', default=False,

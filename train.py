@@ -62,11 +62,12 @@ if __name__ == '__main__':
     print(f'Number of classes: {num_classes}')
 
     # model
-    pointnet = model.PointNet(classes=num_classes)
+    pointnet = model.PointNet(classes=num_classes, p_dropout=args.p_dropout)
     pointnet.to(device)
 
     # optimizer
-    optimizer = torch.optim.Adam(pointnet.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(pointnet.parameters(), lr=args.lr,
+                                 weight_decay=args.weight_decay)
     lossfn = train_utils.pointnetloss
 
     if args.resume_epoch > 0:

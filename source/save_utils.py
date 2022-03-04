@@ -44,13 +44,17 @@ def save_experiment(args):
     tensorboard_save_dir = os.path.join(
         args.tb_log_dir, f"{args.exp_name}_{date_string}")
 
+    ipdb.set_trace()
+
     # make directory for experiment
-    if not os.path.isdir(experiment_save_dir):
-        os.mkdir(experiment_save_dir)
+    if os.path.isdir(experiment_save_dir):
+        experiment_save_dir += 'a'
+    os.mkdir(experiment_save_dir)
 
     # make directory for tensorboard
     if not os.path.isdir(tensorboard_save_dir):
-        os.mkdir(tensorboard_save_dir)
+        experiment_save_dir += 'a'
+    os.mkdir(tensorboard_save_dir)
 
     # add commit has to args
     args_dict = vars(args)
@@ -73,7 +77,7 @@ def save_checkpoint(save_dir, epoch, model, optimizer, data, stats):
     stats['data'] = data
 
     checkpoint_fname = os.path.join(
-        save_dir, f"model_{epoch+1}.pth")
+        save_dir, f"model_{epoch+1:05}.pth")
     torch.save(stats, checkpoint_fname)
     print('Model saved to ', checkpoint_fname)
 

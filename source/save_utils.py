@@ -44,8 +44,6 @@ def save_experiment(args):
     tensorboard_save_dir = os.path.join(
         args.tb_log_dir, f"{args.exp_name}_{date_string}")
 
-    ipdb.set_trace()
-
     # make directory for experiment
     if os.path.isdir(experiment_save_dir):
         experiment_save_dir += 'a'
@@ -53,7 +51,7 @@ def save_experiment(args):
 
     # make directory for tensorboard
     if not os.path.isdir(tensorboard_save_dir):
-        experiment_save_dir += 'a'
+        tensorboard_save_dir += 'a'
     os.mkdir(tensorboard_save_dir)
 
     # add commit has to args

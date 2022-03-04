@@ -158,7 +158,7 @@ def train_loop(dataloader, model, lossfn, optimizer, device,
 
 
 def test_loop(dataloader, train_dataset, model, lossfn, device,
-              tensorboard_vis=None, step=0):
+              tensorboard_vis=None, step=0, debug=False):
     ''' testing '''
 
     with torch.no_grad():
@@ -191,43 +191,45 @@ def test_loop(dataloader, train_dataset, model, lossfn, device,
             scalars=[total_loss, total_correct],
             steps=[step, step])
 
-        # build tensorboard update for confusion matrix
-        figure_update_list = [{
-            'tag': 'Confusion Matrix/test per step',
-            'figure': visualization.plot_confusion_matrix(
-                dataset=train_dataset, preds=predictions.tolist(),
-                true_vals=labels.tolist()),
-            'global_step': step
-        }]
+        figure_update_list, mesh_update_list = [], []
+        if debug:
+            # build tensorboard update for confusion matrix
+            figure_update_list.append({
+                'tag': 'Confusion Matrix/test per step',
+                'figure': visualization.plot_confusion_matrix(
+                    dataset=train_dataset, preds=predictions.tolist(),
+                    true_vals=labels.tolist()),
+                'global_step': step
+            })
 
-        # build tensorboard mesh
-        mesh_update_list = []
-        if True in correct:
+            # build tensorboard mesh
+            if True in correct:
 
-            correct_sample = random_index_from_mask(mask=correct)
-            tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[correct_sample])} Faces/"
+                correct_sample = random_index_from_mask(mask=correct)
+                tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[correct_sample])} Faces/"
 
-            mesh_update_list.extend(visualization.build_tensorboard_meshes(
-                tag=tag_prefix + "correct",
-                xyz=data['pc'][correct_sample, :, :],
-                face=data['fcs'][correct_sample],
-                vertices=data['vrts'][correct_sample],
-                crit_pt_ind=crit_pt_inds[correct_sample, :, :],
-                color=[0., 255., 0.],
-                global_step=step))
+                mesh_update_list.extend(visualization.build_tensorboard_meshes(
+                    tag=tag_prefix + "correct",
+                    xyz=data['pc'][correct_sample, :, :],
+                    face=data['fcs'][correct_sample],
+                    vertices=data['vrts'][correct_sample],
+                    crit_pt_ind=crit_pt_inds[correct_sample, :, :],
+                    color=[0., 255., 0.],
+                    global_step=step))
 
-        if False in correct:
-            incorrect_sample = random_index_from_mask(mask=~correct)
-            tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[incorrect_sample])} Faces/"
+            if False in correct:
 
-            mesh_update_list.extend(visualization.build_tensorboard_meshes(
-                tag=tag_prefix + "incorrect",
-                xyz=data['pc'][incorrect_sample, :, :],
-                crit_pt_ind=crit_pt_inds[incorrect_sample, :, :],
-                face=data['fcs'][incorrect_sample],
-                vertices=data['vrts'][incorrect_sample],
-                color=[255, 0., 0.],
-                global_step=step))
+                incorrect_sample = random_index_from_mask(mask=~correct)
+                tag_prefix = f"Valid, {dataloader.dataset.get_nsides_from_labels(labels[incorrect_sample])} Faces/"
+
+                mesh_update_list.extend(visualization.build_tensorboard_meshes(
+                    tag=tag_prefix + "incorrect",
+                    xyz=data['pc'][incorrect_sample, :, :],
+                    crit_pt_ind=crit_pt_inds[incorrect_sample, :, :],
+                    face=data['fcs'][incorrect_sample],
+                    vertices=data['vrts'][incorrect_sample],
+                    color=[255, 0., 0.],
+                    global_step=step))
 
         # update tensorboard
         tensorboard_vis.update_writer({'scalar': scalar_update_list,
